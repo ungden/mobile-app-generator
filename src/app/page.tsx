@@ -12,7 +12,76 @@ import {
   Check,
   Star,
   ChevronRight,
+  ShoppingBag,
+  Users,
+  Heart,
+  CheckSquare,
+  DollarSign,
+  Utensils,
+  BookOpen,
+  Map,
+  Play,
 } from "lucide-react";
+
+// App categories for quick start
+const appCategories = [
+  {
+    id: "ecommerce",
+    name: "E-Commerce",
+    icon: ShoppingBag,
+    color: "#10b981",
+    example: "App bán quần áo với giỏ hàng",
+  },
+  {
+    id: "social",
+    name: "Social Media",
+    icon: Users,
+    color: "#3b82f6",
+    example: "Mạng xã hội chia sẻ ảnh",
+  },
+  {
+    id: "fitness",
+    name: "Health & Fitness",
+    icon: Heart,
+    color: "#ef4444",
+    example: "App theo dõi workout với timer",
+  },
+  {
+    id: "productivity",
+    name: "Productivity",
+    icon: CheckSquare,
+    color: "#8b5cf6",
+    example: "Todo list với categories",
+  },
+  {
+    id: "finance",
+    name: "Finance",
+    icon: DollarSign,
+    color: "#f59e0b",
+    example: "App quản lý chi tiêu cá nhân",
+  },
+  {
+    id: "food",
+    name: "Food & Delivery",
+    icon: Utensils,
+    color: "#f97316",
+    example: "App đặt đồ ăn với menu",
+  },
+  {
+    id: "education",
+    name: "Education",
+    icon: BookOpen,
+    color: "#06b6d4",
+    example: "Flashcard app học từ vựng",
+  },
+  {
+    id: "entertainment",
+    name: "Entertainment",
+    icon: Play,
+    color: "#ec4899",
+    example: "Music player với playlist",
+  },
+];
 
 const features = [
   {
@@ -121,7 +190,7 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 rounded-full px-4 py-1.5 mb-8">
             <Star className="w-4 h-4 text-purple-400" />
-            <span className="text-sm text-purple-300">Now with GPT-4.1 & Claude Sonnet 4</span>
+            <span className="text-sm text-purple-300">Now with GPT-5.2 & Claude Opus 4.5</span>
           </div>
 
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
@@ -174,6 +243,46 @@ export default function LandingPage() {
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* App Categories - Quick Start */}
+      <section className="py-16 px-4 border-t border-white/5">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
+              What do you want to build?
+            </h2>
+            <p className="text-gray-400">
+              Choose a category to get started with smart AI suggestions
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {appCategories.map((category) => {
+              const Icon = category.icon;
+              return (
+                <Link
+                  key={category.id}
+                  href={`/build?category=${category.id}`}
+                  className="group bg-[#111] border border-[#222] rounded-2xl p-5 hover:border-purple-500/50 transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-purple-500/10"
+                >
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110"
+                    style={{ backgroundColor: `${category.color}20` }}
+                  >
+                    <Icon className="w-6 h-6" style={{ color: category.color }} />
+                  </div>
+                  <h3 className="font-semibold mb-1 group-hover:text-purple-400 transition-colors">
+                    {category.name}
+                  </h3>
+                  <p className="text-xs text-gray-500 line-clamp-2">
+                    {category.example}
+                  </p>
+                </Link>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -251,7 +360,7 @@ export default function LandingPage() {
                 $0<span className="text-lg text-gray-400">/month</span>
               </div>
               <ul className="space-y-3 mb-8">
-                {["5 generations per day", "Basic preview", "Code export"].map(
+                {["5 generations per day", "All flagship AI models", "Live preview", "Code export"].map(
                   (item, i) => (
                     <li key={i} className="flex items-center gap-2 text-sm">
                       <Check className="w-4 h-4 text-green-400" />
@@ -276,15 +385,15 @@ export default function LandingPage() {
               <h3 className="text-xl font-semibold mb-2">Pro</h3>
               <p className="text-gray-400 text-sm mb-4">For serious builders</p>
               <div className="text-4xl font-bold mb-6">
-                $20<span className="text-lg text-gray-400">/month</span>
+                $29<span className="text-lg text-gray-400">/month</span>
               </div>
               <ul className="space-y-3 mb-8">
                 {[
                   "Unlimited generations",
-                  "All AI models",
+                  "GPT-5.2, Claude Sonnet/Opus 4.5, Gemini 3 Pro",
+                  "Full Expo project export",
+                  "QR code testing",
                   "Priority support",
-                  "APK/IPA export",
-                  "Version history",
                 ].map((item, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-green-400" />
@@ -292,9 +401,9 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <button className="w-full bg-purple-600 hover:bg-purple-500 py-3 rounded-xl font-medium transition-colors">
+              <Link href="/pricing" className="w-full bg-purple-600 hover:bg-purple-500 py-3 rounded-xl font-medium transition-colors block text-center">
                 Upgrade to Pro
-              </button>
+              </Link>
             </div>
 
             {/* Enterprise Tier */}
@@ -353,7 +462,7 @@ export default function LandingPage() {
             <span className="font-semibold">AppForge</span>
           </div>
           <p className="text-sm text-gray-500">
-            2024 AppForge. Built with Next.js, Expo, and OpenAI.
+            2026 AppForge. Built with Next.js, Expo, and AI.
           </p>
         </div>
       </footer>

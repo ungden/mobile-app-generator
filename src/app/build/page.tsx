@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import ChatPanel from "@/components/ChatPanel";
 import CodePreview from "@/components/CodePreview";
 import { defaultAppCode } from "@/lib/templates";
 import { downloadAsFile, downloadAsExpoProject } from "@/lib/export";
+import { useToast } from "@/components/Toast";
 import {
   Sparkles,
   ArrowLeft,
@@ -16,12 +17,17 @@ import {
   Share2,
   QrCode,
   X,
+  Loader2,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
 function BuildContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const { showToast } = useToast();
   const initialPrompt = searchParams.get("prompt") || "";
+  const projectId = searchParams.get("project");
+  const initialCategory = searchParams.get("category") || "";
 
   const [code, setCode] = useState(defaultAppCode);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -29,6 +35,38 @@ function BuildContent() {
   const [showQRModal, setShowQRModal] = useState(false);
   const [projectName, setProjectName] = useState("My App");
   const [isSaving, setIsSaving] = useState(false);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(projectId);
+  const [isLoadingProject, setIsLoadingProject] = useState(!!projectId);
+
+  // Load project if ID is provided
+  useEffect(() => {
+    if (projectId) {
+      loadProject(projectId);
+    }
+  }, [projectId]);
+
+  const loadProject = async (id: string) => {
+    setIsLoadingProject(true);
+    try {
+      const response = await fetch(`/api/projects/${id}`);
+      const data = await response.json();
+
+      if (data.error) {
+        console.error("Failed to load project:", data.error);
+        // Redirect to build without project ID if not found
+        router.replace("/build");
+        return;
+      }
+
+      setCode(data.project.code);
+      setProjectName(data.project.name || "My App");
+      setCurrentProjectId(data.project.id);
+    } catch (error) {
+      console.error("Failed to load project:", error);
+    } finally {
+      setIsLoadingProject(false);
+    }
+  };
 
   const handleCodeGenerated = (newCode: string) => {
     setCode(newCode);
@@ -46,10 +84,13 @@ function BuildContent() {
   const handleSaveProject = async () => {
     setIsSaving(true);
     try {
+      // If we have a project ID, update it. Otherwise, create new.
+      const isUpdate = !!currentProjectId;
       const response = await fetch("/api/projects", {
-        method: "POST",
+        method: isUpdate ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          id: currentProjectId,
           name: projectName,
           code,
         }),
@@ -61,13 +102,20 @@ function BuildContent() {
           // Redirect to login
           window.location.href = "/login?redirect=/build";
         } else {
-          alert(data.error);
+          showToast(data.error, "error");
         }
       } else {
-        alert("Project saved successfully!");
+        // Update the current project ID if this was a new project
+        if (!currentProjectId && data.project?.id) {
+          setCurrentProjectId(data.project.id);
+          // Update URL without reload
+          window.history.replaceState({}, "", `/build?project=${data.project.id}`);
+        }
+        showToast(isUpdate ? "Project updated!" : "Project saved!", "success");
       }
     } catch (error) {
       console.error("Failed to save:", error);
+      showToast("Failed to save project", "error");
     } finally {
       setIsSaving(false);
     }
@@ -174,20 +222,32 @@ function BuildContent() {
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Chat Panel */}
-        <div className="w-[400px] border-r border-[#222] flex-shrink-0">
-          <ChatPanel
-            onCodeGenerated={handleCodeGenerated}
-            isGenerating={isGenerating}
-            setIsGenerating={setIsGenerating}
-            initialPrompt={initialPrompt}
-          />
-        </div>
+        {isLoadingProject ? (
+          <div className="flex-1 flex items-center justify-center bg-[#0a0a0a]">
+            <div className="text-center">
+              <Loader2 className="w-8 h-8 animate-spin text-purple-500 mx-auto mb-3" />
+              <p className="text-gray-400">Loading project...</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Chat Panel */}
+            <div className="w-[400px] border-r border-[#222] flex-shrink-0">
+              <ChatPanel
+                onCodeGenerated={handleCodeGenerated}
+                isGenerating={isGenerating}
+                setIsGenerating={setIsGenerating}
+                initialPrompt={initialPrompt}
+                initialCategory={initialCategory}
+              />
+            </div>
 
-        {/* Code Preview */}
-        <div className="flex-1">
-          <CodePreview code={code} isGenerating={isGenerating} />
-        </div>
+            {/* Code Preview */}
+            <div className="flex-1">
+              <CodePreview code={code} isGenerating={isGenerating} />
+            </div>
+          </>
+        )}
       </div>
 
       {/* QR Code Modal */}

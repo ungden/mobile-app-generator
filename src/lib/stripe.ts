@@ -16,6 +16,27 @@ export const getStripe = () => {
   return stripePromise;
 };
 
+/**
+ * Cost Analysis (Per Generation) - FLAGSHIP MODELS ONLY (January 2026):
+ * 
+ * | Model               | Cost/Gen   | Break-even at $29/mo |
+ * |---------------------|------------|----------------------|
+ * | GPT-5.2             | $0.074     | ~392 gens            |
+ * | Claude Sonnet 4.5   | $0.085     | ~341 gens            |
+ * | Claude Opus 4.5     | $0.142     | ~204 gens            |
+ * | Gemini 3 Pro        | $0.065     | ~446 gens            |
+ * 
+ * Average cost per generation: ~$0.091
+ * 
+ * Estimated Monthly Cost (all flagship models):
+ * - Free tier (5/day × 30 = 150 gens): ~$13.65
+ * - Pro tier (100 gens/mo): ~$9.10
+ * - Profit margin at $29/mo with 100 gens: ~69%
+ */
+
+// Available flagship models (January 2026)
+export const FLAGSHIP_MODELS = ["gpt-5.2", "claude-sonnet-4.5", "claude-opus-4.5", "gemini-3-pro"];
+
 // Pricing configuration
 export const PLANS = {
   free: {
@@ -24,20 +45,23 @@ export const PLANS = {
     priceId: null,
     features: [
       "5 generations per day",
-      "Basic preview",
+      "All flagship AI models",
+      "Live preview",
       "Code export (App.js)",
     ],
     limits: {
       generationsPerDay: 5,
     },
+    // Business metrics
+    estimatedCostPerUser: 13.65, // per month (150 gens × $0.091 avg)
   },
   pro: {
     name: "Pro",
-    price: 20,
+    price: 29, // Account for flagship model costs
     priceId: process.env.STRIPE_PRO_PRICE_ID || "price_pro",
     features: [
       "Unlimited generations",
-      "All AI models (GPT-4.1, Claude, Gemini)",
+      "All flagship AI models (GPT-5.2, Claude Sonnet 4.5, Opus 4.5, Gemini 3 Pro)",
       "Full Expo project export",
       "QR code testing",
       "Priority support",
@@ -46,6 +70,9 @@ export const PLANS = {
     limits: {
       generationsPerDay: -1, // unlimited
     },
+    // Business metrics
+    estimatedCostPerUser: 9.10, // per month (100 gens avg)
+    profitMargin: 0.69, // 69%
   },
   enterprise: {
     name: "Enterprise",
@@ -66,3 +93,13 @@ export const PLANS = {
 };
 
 export type PlanType = keyof typeof PLANS;
+
+// All models are allowed for all tiers - no restrictions on flagship models
+export function isModelAllowedForTier(model: string, tier: PlanType): boolean {
+  return FLAGSHIP_MODELS.includes(model);
+}
+
+// Get default model for any tier
+export function getDefaultModelForTier(tier: PlanType): string {
+  return "gpt-5.2"; // Best for coding
+}

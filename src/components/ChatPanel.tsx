@@ -1,7 +1,15 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Loader2, Sparkles, User, ChevronDown, RotateCcw } from "lucide-react";
+import CategorySelector from "./CategorySelector";
+import UsageIndicator from "./UsageIndicator";
+import {
+  APP_CATEGORIES,
+  AppCategory,
+  getEnhancedSystemPrompt,
+  formatUserPrompt,
+} from "@/lib/app-templates";
 
 interface Message {
   id: string;
@@ -9,13 +17,14 @@ interface Message {
   content: string;
 }
 
-export type AIModel = "gpt-4.1" | "gpt-4o" | "claude-sonnet-4" | "gemini-2.0-flash";
+// Latest flagship models - January 2026
+export type AIModel = "gpt-5.2" | "claude-sonnet-4.5" | "claude-opus-4.5" | "gemini-3-pro";
 
-const modelOptions: { value: AIModel; label: string; icon: string }[] = [
-  { value: "gpt-4.1", label: "GPT-4.1", icon: "OpenAI" },
-  { value: "gpt-4o", label: "GPT-4o", icon: "OpenAI" },
-  { value: "claude-sonnet-4", label: "Claude Sonnet 4", icon: "Anthropic" },
-  { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash", icon: "Google" },
+const modelOptions: { value: AIModel; label: string; icon: string; description: string }[] = [
+  { value: "gpt-5.2", label: "GPT-5.2", icon: "OpenAI", description: "Best for coding" },
+  { value: "claude-sonnet-4.5", label: "Claude Sonnet 4.5", icon: "Anthropic", description: "Best balance" },
+  { value: "claude-opus-4.5", label: "Claude Opus 4.5", icon: "Anthropic", description: "Most intelligent" },
+  { value: "gemini-3-pro", label: "Gemini 3 Pro", icon: "Google", description: "Most capable" },
 ];
 
 interface ChatPanelProps {
@@ -23,6 +32,7 @@ interface ChatPanelProps {
   isGenerating: boolean;
   setIsGenerating: (value: boolean) => void;
   initialPrompt?: string;
+  initialCategory?: string;
 }
 
 export default function ChatPanel({
@@ -30,21 +40,36 @@ export default function ChatPanel({
   isGenerating,
   setIsGenerating,
   initialPrompt = "",
+  initialCategory = "",
 }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
       role: "assistant",
       content:
-        "Hi! I'm AppForge AI. Describe the mobile app you want to create and I'll generate the code for you. Feel free to ask for modifications after!",
+        "Hi! I'm AppForge AI. Choose an app category above for smarter suggestions, then describe your app idea. I'll create a polished MVP for you!",
     },
   ]);
   const [input, setInput] = useState("");
-  const [selectedModel, setSelectedModel] = useState<AIModel>("gpt-4.1");
+  const [selectedModel, setSelectedModel] = useState<AIModel>("gpt-5.2");
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [currentCode, setCurrentCode] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<AppCategory | null>(
+    () => {
+      if (initialCategory) {
+        return APP_CATEGORIES.find((c) => c.id === initialCategory) || null;
+      }
+      return null;
+    }
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const initialPromptProcessed = useRef(false);
+  const [usageKey, setUsageKey] = useState(0);
+
+  // Refresh usage indicator after generation
+  const refreshUsage = useCallback(() => {
+    setUsageKey((k) => k + 1);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -85,16 +110,37 @@ export default function ChatPanel({
         .filter((m) => m.id !== "1") // Exclude initial greeting
         .map((m) => ({ role: m.role, content: m.content }));
 
+      // Get enhanced prompt based on category
+      const enhancedUserPrompt = currentCode
+        ? promptText // For modifications, keep the original prompt
+        : formatUserPrompt(promptText, selectedCategory || undefined);
+
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: promptText,
+          prompt: enhancedUserPrompt,
           model: selectedModel,
           history: conversationHistory,
           currentCode: currentCode,
+          categoryId: selectedCategory?.id,
         }),
       });
+
+      // Handle rate limit error
+      if (response.status === 429) {
+        const data = await response.json();
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            role: "assistant",
+            content: `${data.error}\n\nUpgrade to Pro for unlimited generations!`,
+          },
+        ]);
+        setIsGenerating(false);
+        return;
+      }
 
       // Handle streaming response
       if (response.headers.get("content-type")?.includes("text/event-stream")) {
@@ -108,7 +154,7 @@ export default function ChatPanel({
             if (done) break;
             const chunk = decoder.decode(value);
             fullCode += chunk;
-            
+
             // Check for clean code marker
             if (fullCode.includes("__CLEAN_CODE__")) {
               const cleanCode = fullCode.split("__CLEAN_CODE__")[1].trim();
@@ -138,16 +184,22 @@ export default function ChatPanel({
             }
             setCurrentCode(cleanCode);
             onCodeGenerated(cleanCode);
-            
+
+            const successMessage = currentCode
+              ? "Done! I've updated your app. Check the preview on the right."
+              : `Your ${selectedCategory?.name || ""} app is ready! Check the preview. Want any changes?`;
+
             setMessages((prev) => [
               ...prev,
               {
                 id: Date.now().toString(),
                 role: "assistant",
-                content:
-                  "Done! I've updated your app. Check the preview on the right. Want any changes?",
+                content: successMessage,
               },
             ]);
+
+            // Refresh usage after successful generation
+            refreshUsage();
           }
         }
       } else if (response.ok) {
@@ -202,17 +254,22 @@ export default function ChatPanel({
         id: "1",
         role: "assistant",
         content:
-          "Hi! I'm AppForge AI. Describe the mobile app you want to create and I'll generate the code for you. Feel free to ask for modifications after!",
+          "Hi! I'm AppForge AI. Choose an app category above for smarter suggestions, then describe your app idea. I'll create a polished MVP for you!",
       },
     ]);
     setCurrentCode("");
+    setSelectedCategory(null);
+  };
+
+  const handleSelectPrompt = (prompt: string) => {
+    setInput(prompt);
   };
 
   return (
     <div className="flex flex-col h-full bg-[#0a0a0a]">
       {/* Header */}
-      <div className="p-4 border-b border-[#222]">
-        <div className="flex items-center justify-between mb-2">
+      <div className="p-4 border-b border-[#222] space-y-3">
+        <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-purple-500" />
             AI Assistant
@@ -225,6 +282,16 @@ export default function ChatPanel({
             <RotateCcw className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Category Selector */}
+        <CategorySelector
+          selectedCategory={selectedCategory}
+          onSelectCategory={setSelectedCategory}
+          onSelectPrompt={handleSelectPrompt}
+        />
+
+        {/* Usage Indicator */}
+        <UsageIndicator key={usageKey} variant="compact" />
 
         {/* Model Selector */}
         <div className="relative">
@@ -240,23 +307,29 @@ export default function ChatPanel({
           </button>
 
           {showModelDropdown && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-[#1a1a1a] border border-[#333] rounded-lg shadow-xl z-50 overflow-hidden">
-              {modelOptions.map((model) => (
-                <button
-                  key={model.value}
-                  onClick={() => {
-                    setSelectedModel(model.value);
-                    setShowModelDropdown(false);
-                  }}
-                  className={`w-full text-left px-3 py-2.5 text-sm hover:bg-[#222] transition-colors flex items-center justify-between ${
-                    selectedModel === model.value ? "bg-[#222]" : ""
-                  }`}
-                >
-                  <span>{model.label}</span>
-                  <span className="text-xs text-gray-500">{model.icon}</span>
-                </button>
-              ))}
-            </div>
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setShowModelDropdown(false)}
+              />
+              <div className="absolute top-full left-0 right-0 mt-1 bg-[#1a1a1a] border border-[#333] rounded-lg shadow-xl z-50 overflow-hidden">
+                {modelOptions.map((model) => (
+                  <button
+                    key={model.value}
+                    onClick={() => {
+                      setSelectedModel(model.value);
+                      setShowModelDropdown(false);
+                    }}
+                    className={`w-full text-left px-3 py-2.5 text-sm hover:bg-[#222] transition-colors flex items-center justify-between ${
+                      selectedModel === model.value ? "bg-[#222]" : ""
+                    }`}
+                  >
+                    <span>{model.label}</span>
+                    <span className="text-xs text-gray-500">{model.icon}</span>
+                  </button>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -290,7 +363,9 @@ export default function ChatPanel({
                   : "bg-[#1a1a1a] border border-[#333]"
               }`}
             >
-              <p className="text-sm leading-relaxed">{message.content}</p>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                {message.content}
+              </p>
             </div>
           </div>
         ))}
@@ -302,7 +377,7 @@ export default function ChatPanel({
             <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl px-4 py-3">
               <div className="flex items-center gap-2 text-sm text-gray-400">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Generating your app...
+                Crafting your {selectedCategory?.name?.toLowerCase() || ""} app...
               </div>
             </div>
           </div>
@@ -320,6 +395,8 @@ export default function ChatPanel({
             placeholder={
               currentCode
                 ? "Describe changes you want..."
+                : selectedCategory
+                ? `Describe your ${selectedCategory.name.toLowerCase()} app...`
                 : "Describe your app idea..."
             }
             disabled={isGenerating}
@@ -335,8 +412,10 @@ export default function ChatPanel({
         </div>
         <p className="text-xs text-gray-600 mt-2 text-center">
           {currentCode
-            ? 'Try: "Add a dark mode toggle" or "Change the colors to blue"'
-            : 'Try: "Create a habit tracker" or "Build a recipe app"'}
+            ? 'Try: "Add a dark mode toggle" or "Make the cards bigger"'
+            : selectedCategory
+            ? `Tip: Be specific about features you want`
+            : "Select a category above for better results"}
         </p>
       </form>
     </div>

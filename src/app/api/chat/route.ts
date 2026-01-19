@@ -2,36 +2,119 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { systemPrompt, modifyPrompt } from "@/lib/templates";
+import { createClient } from "@/lib/supabase/server";
+import { checkUsageLimit, incrementUsageManual } from "@/lib/usage";
+import { isModelAllowedForTier, PlanType } from "@/lib/stripe";
+import {
+  APP_CATEGORIES,
+  getEnhancedSystemPrompt,
+  getEnhancedModifyPrompt,
+} from "@/lib/app-templates";
+import { checkIpRateLimit, incrementIpUsage, getClientIp } from "@/lib/rate-limit";
 
-export const runtime = "edge";
+export const runtime = "nodejs"; // Changed from edge to support Supabase server client
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
-type AIModel = "gpt-4.1" | "gpt-4o" | "claude-sonnet-4" | "gemini-2.0-flash";
+// Latest flagship models - January 2026
+type AIModel = "gpt-5.2" | "claude-sonnet-4.5" | "claude-opus-4.5" | "gemini-3-pro";
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, model = "gpt-4.1", history = [], currentCode = "" } = await request.json();
+    const { prompt, model = "gpt-4.1", history = [], currentCode = "", categoryId = "" } = await request.json();
 
     if (!prompt) {
       return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
     }
 
-    const systemContent = currentCode ? modifyPrompt : systemPrompt;
-    const userContent = currentCode
-      ? `Current code:\n\`\`\`javascript\n${currentCode}\n\`\`\`\n\nUser request: ${prompt}\n\nPlease modify the code according to the request. Return the complete updated code.`
-      : `Create a React Native app based on this description: ${prompt}`;
+    // Check authentication and usage limits
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
 
-    // Route to appropriate provider
-    if (model === "gpt-4.1" || model === "gpt-4o") {
+    // Determine user's subscription tier
+    let userTier: PlanType = "free";
+
+    if (user) {
+      // User is logged in - check their usage limits and tier
+      const usage = await checkUsageLimit(user.id);
+      userTier = usage.tier;
+
+      if (!usage.allowed) {
+        const resetTime = usage.resetAt
+          ? `Resets at ${usage.resetAt.toLocaleTimeString()}`
+          : "Upgrade to Pro for unlimited generations";
+
+        return NextResponse.json(
+          {
+            error: `Daily limit reached (${usage.limit} generations). ${resetTime}`,
+            code: "LIMIT_REACHED",
+            usage,
+          },
+          { status: 429 }
+        );
+      }
+
+      // Check if user's tier allows this model
+      if (!isModelAllowedForTier(model, userTier)) {
+        return NextResponse.json(
+          {
+            error: `${model} is not available on the ${userTier} plan. Upgrade to Pro for all models.`,
+            code: "MODEL_NOT_ALLOWED",
+            allowedModels: userTier === "free" ? ["gemini-2.0-flash"] : undefined,
+          },
+          { status: 403 }
+        );
+      }
+    }
+    // Anonymous users - rate limit by IP
+    if (!user) {
+      const clientIp = getClientIp(request);
+      const ipLimit = checkIpRateLimit(clientIp);
+
+      if (!ipLimit.allowed) {
+        return NextResponse.json(
+          {
+            error: `You've reached the limit for anonymous users (${ipLimit.limit} generations/day). Sign up for free to get ${5} generations/day, or upgrade to Pro for unlimited access.`,
+            code: "ANONYMOUS_LIMIT_REACHED",
+            resetAt: ipLimit.resetAt.toISOString(),
+          },
+          { status: 429 }
+        );
+      }
+
+      // Increment IP usage before making the API call
+      incrementIpUsage(clientIp);
+    }
+
+    // Get category for enhanced prompts
+    const category = categoryId
+      ? APP_CATEGORIES.find((c) => c.id === categoryId)
+      : undefined;
+
+    // Use enhanced prompts for better MVP generation
+    const systemContent = currentCode
+      ? getEnhancedModifyPrompt(category)
+      : getEnhancedSystemPrompt(category);
+
+    const userContent = currentCode
+      ? `Current code:\n\`\`\`javascript\n${currentCode}\n\`\`\`\n\nUser request: ${prompt}\n\nModify the code according to the request. Return the complete updated code.`
+      : prompt; // Prompt is already enhanced by the client
+
+    // Increment usage before making the API call (to prevent abuse)
+    // We count the attempt, not just successful completions
+    if (user) {
+      await incrementUsageManual(user.id, model);
+    }
+
+    // Route to appropriate provider - all flagship models
+    if (model === "gpt-5.2") {
       return handleOpenAI(model, systemContent, userContent, history);
-    } else if (model === "claude-sonnet-4") {
-      return handleAnthropic(systemContent, userContent, history);
-    } else if (model === "gemini-2.0-flash") {
+    } else if (model === "claude-sonnet-4.5" || model === "claude-opus-4.5") {
+      return handleAnthropic(model, systemContent, userContent, history);
+    } else if (model === "gemini-3-pro") {
       return handleGemini(systemContent, userContent, history);
     }
 
@@ -74,7 +157,7 @@ async function handleOpenAI(
     model: model,
     messages,
     temperature: 0.7,
-    max_tokens: 4000,
+    max_tokens: 8000, // Increased for MVP-quality code
     stream: true,
   });
 
@@ -82,6 +165,7 @@ async function handleOpenAI(
 }
 
 async function handleAnthropic(
+  model: string,
   systemContent: string,
   userContent: string,
   history: Message[]
@@ -102,9 +186,14 @@ async function handleAnthropic(
 
   messages.push({ role: "user", content: userContent });
 
+  // Map to actual Anthropic model names
+  const anthropicModel = model === "claude-opus-4.5" 
+    ? "claude-opus-4-5-20250120" 
+    : "claude-sonnet-4-5-20250120";
+
   const stream = await anthropic.messages.stream({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 4000,
+    model: anthropicModel,
+    max_tokens: 8000, // Increased for MVP-quality code
     system: systemContent,
     messages,
   });
@@ -125,12 +214,13 @@ async function handleGemini(
   }
 
   const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+  // Use Gemini 3 Pro - Google's most capable model (January 2026)
+  const model = genAI.getGenerativeModel({ model: "gemini-3-pro" });
 
   const chat = model.startChat({
     history: [
       { role: "user", parts: [{ text: systemContent }] },
-      { role: "model", parts: [{ text: "Understood. I will generate React Native code as requested." }] },
+      { role: "model", parts: [{ text: "Understood. I will generate high-quality React Native code as requested." }] },
       ...history.map((msg) => ({
         role: msg.role === "user" ? "user" : "model" as const,
         parts: [{ text: msg.content }],

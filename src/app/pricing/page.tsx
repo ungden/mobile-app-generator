@@ -180,7 +180,7 @@ export default function PricingPage() {
                 },
                 {
                   q: "What AI models are available?",
-                  a: "Pro users get access to GPT-4.1, Claude Sonnet 4, and Gemini 2.0 Flash. Free users can use GPT-4.1 with limited generations.",
+                  a: "All users get access to our flagship models: GPT-5.2, Claude Sonnet 4.5, Claude Opus 4.5, and Gemini 3 Pro - the most powerful AI models available.",
                 },
                 {
                   q: "Can I export my apps?",

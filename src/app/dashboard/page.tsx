@@ -1,7 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Sparkles, Plus, Clock, MoreVertical, LogOut } from "lucide-react";
+import { Sparkles, Plus, LogOut } from "lucide-react";
+import ProjectsGrid from "@/components/ProjectsGrid";
+import DashboardStats from "@/components/DashboardStats";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -73,62 +75,20 @@ export default async function DashboardPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="text-3xl font-bold mb-2">Welcome back!</h1>
-          <p className="text-gray-400">
-            {user.email} &middot; {projects?.length || 0} projects
-          </p>
+          <p className="text-gray-400">{user.email}</p>
         </div>
 
-        {/* Projects Grid */}
-        {projects && projects.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project: any) => (
-              <Link
-                key={project.id}
-                href={`/build?project=${project.id}`}
-                className="group bg-[#111] border border-[#222] rounded-xl overflow-hidden hover:border-purple-500/50 transition-colors"
-              >
-                {/* Preview thumbnail */}
-                <div className="aspect-[4/3] bg-[#1a1a1a] flex items-center justify-center">
-                  <div className="w-24 h-40 bg-[#222] rounded-xl border border-[#333]" />
-                </div>
+        {/* Stats Cards */}
+        <DashboardStats
+          projectCount={projects?.length || 0}
+          userEmail={user.email || ""}
+        />
 
-                <div className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-semibold group-hover:text-purple-400 transition-colors">
-                        {project.name || "Untitled Project"}
-                      </h3>
-                      <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                        <Clock className="w-3 h-3" />
-                        {new Date(project.updated_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <button className="p-1 text-gray-400 hover:text-white transition-colors">
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-20">
-            <div className="w-16 h-16 bg-[#1a1a1a] rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <Plus className="w-8 h-8 text-gray-500" />
-            </div>
-            <h2 className="text-xl font-semibold mb-2">No projects yet</h2>
-            <p className="text-gray-400 mb-6">Create your first app to get started</p>
-            <Link
-              href="/build"
-              className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-500 px-6 py-3 rounded-lg font-medium transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Create New Project
-            </Link>
-          </div>
-        )}
+        {/* Projects Section */}
+        <h2 className="text-xl font-semibold mb-4">Your Projects</h2>
+        <ProjectsGrid initialProjects={projects || []} />
       </main>
     </div>
   );
