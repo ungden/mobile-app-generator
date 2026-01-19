@@ -1,7 +1,6 @@
 /**
- * Snack Manager - Handles Expo Snack integration via iframe embed
- * Uses Snack's web embed API instead of snack-sdk (which has Node.js deps)
- * This approach is similar to how Rork works
+ * Snack Manager - Handles project state management
+ * Uses simple template compatible with Sandpack/react-native-web
  */
 
 export interface ProjectFile {
@@ -26,49 +25,20 @@ export interface FileChange {
   contents?: string;
 }
 
-// Default Expo project template
+// Simple default template that works with react-native-web/Sandpack
 const DEFAULT_PROJECT_FILES: Record<string, ProjectFile> = {
   'App.js': {
     path: 'App.js',
     type: 'CODE',
-    contents: `import { registerRootComponent } from 'expo';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import HomeScreen from './screens/HomeScreen';
-
-const Stack = createNativeStackNavigator();
-
-function App() {
-  return (
-    <NavigationContainer>
-      <Stack.Navigator>
-        <Stack.Screen 
-          name="Home" 
-          component={HomeScreen}
-          options={{ headerShown: false }}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
-  );
-}
-
-export default registerRootComponent(App);
-`,
-  },
-  'screens/HomeScreen.js': {
-    path: 'screens/HomeScreen.js',
-    type: 'CODE',
     contents: `import React from 'react';
 import { View, Text, StyleSheet, SafeAreaView, StatusBar } from 'react-native';
+import HomeScreen from './screens/HomeScreen';
 
-export default function HomeScreen() {
+export default function App() {
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <View style={styles.content}>
-        <Text style={styles.title}>Welcome to 24fit</Text>
-        <Text style={styles.subtitle}>Your app is ready!</Text>
-      </View>
+      <StatusBar barStyle="light-content" backgroundColor="#0a0a0a" />
+      <HomeScreen />
     </SafeAreaView>
   );
 }
@@ -78,21 +48,71 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0a0a0a',
   },
-  content: {
+});
+`,
+  },
+  'screens/HomeScreen.js': {
+    path: 'screens/HomeScreen.js',
+    type: 'CODE',
+    contents: `import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import Button from '../components/Button';
+import Card from '../components/Card';
+import Colors from '../constants/Colors';
+
+export default function HomeScreen() {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Welcome to 24fit</Text>
+      <Text style={styles.subtitle}>Describe your app and AI will build it!</Text>
+      
+      <Card style={styles.card}>
+        <Text style={styles.cardTitle}>Getting Started</Text>
+        <Text style={styles.cardText}>
+          Type a description in the chat to generate your app.
+        </Text>
+      </Card>
+      
+      <Button title="Let's Build!" onPress={() => {}} />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
     flex: 1,
+    backgroundColor: Colors.background,
+    padding: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
-    color: '#ffffff',
+    color: Colors.text,
     marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
-    color: '#a1a1aa',
+    color: Colors.textTertiary,
+    marginBottom: 32,
+    textAlign: 'center',
+  },
+  card: {
+    width: '100%',
+    marginBottom: 24,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  cardText: {
+    fontSize: 14,
+    color: Colors.textTertiary,
+    lineHeight: 20,
   },
 });
 `,
@@ -101,7 +121,7 @@ const styles = StyleSheet.create({
     path: 'constants/Colors.js',
     type: 'CODE',
     contents: `// Design tokens
-export const Colors = {
+const Colors = {
   // Backgrounds
   background: '#0a0a0a',
   card: '#111111',
@@ -165,6 +185,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 12,
     alignItems: 'center',
+    minWidth: 120,
   },
   secondary: {
     backgroundColor: 'transparent',
@@ -210,12 +231,8 @@ const styles = StyleSheet.create({
   },
 };
 
-const DEFAULT_DEPENDENCIES: Record<string, string> = {
-  '@react-navigation/native': '6.x',
-  '@react-navigation/native-stack': '6.x',
-  'react-native-screens': '~3.29.0',
-  'react-native-safe-area-context': '4.8.2',
-};
+// No external dependencies needed - pure react-native-web
+const DEFAULT_DEPENDENCIES: Record<string, string> = {};
 
 export class SnackManager {
   private files: Record<string, ProjectFile> = {};
@@ -233,7 +250,7 @@ export class SnackManager {
   }
 
   /**
-   * Initialize manager (no-op in this implementation, kept for API compatibility)
+   * Initialize manager
    */
   initialize() {
     this.notifyListeners();
@@ -256,47 +273,12 @@ export class SnackManager {
 
   /**
    * Generate Snack embed URL with current code
-   * This creates a URL that can be used in an iframe to preview the app
    */
   getSnackEmbedUrl(): string {
-    // Build files object for Snack URL
-    const snackFiles: Record<string, string> = {};
-    for (const [path, file] of Object.entries(this.files)) {
-      snackFiles[path] = file.contents;
-    }
-
-    // Create Snack URL parameters
-    const params = new URLSearchParams({
-      platform: 'web',
-      name: this.name,
-      description: this.description,
-      sdkVersion: this.sdkVersion,
-      theme: 'dark',
-      preview: 'true',
-      loading: 'lazy',
-    });
-
-    // Add dependencies
-    const depsObj = Object.entries(this.dependencies).reduce((acc, [name, version]) => {
-      acc[name] = version;
-      return acc;
-    }, {} as Record<string, string>);
-    params.set('dependencies', JSON.stringify(depsObj));
-
-    // Add files
-    params.set('files', JSON.stringify(snackFiles));
-
-    return `https://snack.expo.dev/embedded?${params.toString()}`;
-  }
-
-  /**
-   * Get QR code URL for testing on Expo Go
-   * Note: This requires saving to Expo servers first
-   */
-  getQRCodeUrl(): string | null {
-    // For QR codes, we need to save the snack first
-    // For now, return null - we can implement save functionality later
-    return null;
+    if (!this.files['App.js']) return '';
+    const appCode = this.files['App.js'].contents;
+    const encodedCode = encodeURIComponent(appCode);
+    return `https://snack.expo.dev/?code=${encodedCode}&name=${encodeURIComponent(this.name)}`;
   }
 
   /**
@@ -331,7 +313,7 @@ export class SnackManager {
   }
 
   /**
-   * Edit a file using search/replace (more efficient than rewriting)
+   * Edit a file using search/replace
    */
   editFile(path: string, searchText: string, replaceText: string): FileChange | null {
     const file = this.files[path];
@@ -418,7 +400,6 @@ export class SnackManager {
    * Add changes to history
    */
   private addToHistory(changes: FileChange[]): void {
-    // Remove any future history if we're not at the end
     if (this.historyIndex < this.history.length - 1) {
       this.history = this.history.slice(0, this.historyIndex + 1);
     }
@@ -440,8 +421,7 @@ export class SnackManager {
   restoreToHistory(index: number): void {
     if (index < 0 || index >= this.history.length) return;
     
-    // Rebuild files from scratch by replaying history
-    this.files = { ...DEFAULT_PROJECT_FILES };
+    this.files = JSON.parse(JSON.stringify(DEFAULT_PROJECT_FILES));
     
     for (let i = 0; i <= index; i++) {
       for (const change of this.history[i]) {
@@ -465,7 +445,7 @@ export class SnackManager {
    * Reset project to default
    */
   reset(): void {
-    this.files = { ...DEFAULT_PROJECT_FILES };
+    this.files = JSON.parse(JSON.stringify(DEFAULT_PROJECT_FILES));
     this.dependencies = { ...DEFAULT_DEPENDENCIES };
     this.history = [];
     this.historyIndex = -1;
@@ -481,7 +461,7 @@ export class SnackManager {
   }
 
   /**
-   * Export project as object (for saving to database)
+   * Export project
    */
   exportProject(): {
     name: string;
@@ -496,7 +476,7 @@ export class SnackManager {
   }
 
   /**
-   * Import project from saved state
+   * Import project
    */
   importProject(data: {
     name?: string;
@@ -529,9 +509,6 @@ export function getSnackManager(): SnackManager {
   return snackManagerInstance;
 }
 
-/**
- * Create a new SnackManager instance (for testing or isolated use)
- */
 export function createSnackManager(): SnackManager {
   return new SnackManager();
 }

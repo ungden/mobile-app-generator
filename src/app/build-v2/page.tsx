@@ -849,22 +849,15 @@ const styles = StyleSheet.create({
                   files={getSandpackFiles()}
                   customSetup={{
                     dependencies: {
-                      "react-native-web": "^0.19.10",
-                      "@react-navigation/native": "^6.1.9",
-                      "@react-navigation/native-stack": "^6.9.17",
-                      "react-native-screens": "~3.29.0",
-                      "react-native-safe-area-context": "4.8.2",
+                      "react-native-web": "~0.19.10",
                       ...projectState.dependencies,
                     },
                     entry: "/index.js",
                   }}
                   options={{
-                    externalResources: [
-                      "https://unpkg.com/react-native-web@0.19.10/dist/index.js",
-                    ],
                     recompileMode: "delayed",
-                    recompileDelay: 1000,
-                    autorun: !isGenerating,
+                    recompileDelay: 500,
+                    autorun: true,
                     autoReload: false,
                     activeFile: `/${selectedFile}`,
                   }}
