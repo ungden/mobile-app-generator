@@ -9,6 +9,8 @@ interface Project {
   id: string;
   name: string;
   updated_at: string;
+  version?: number;
+  files?: Record<string, any>;
 }
 
 interface ProjectsGridProps {

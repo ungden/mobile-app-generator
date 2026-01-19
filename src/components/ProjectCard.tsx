@@ -9,6 +9,8 @@ interface Project {
   id: string;
   name: string;
   updated_at: string;
+  version?: number;
+  files?: Record<string, any>;
 }
 
 interface ProjectCardProps {
@@ -55,8 +57,14 @@ export default function ProjectCard({ project, onDelete }: ProjectCardProps) {
     <div className="group bg-[#111] border border-[#222] rounded-xl overflow-hidden hover:border-purple-500/50 transition-colors relative">
       <Link href={`/build?project=${project.id}`}>
         {/* Preview thumbnail */}
-        <div className="aspect-[4/3] bg-[#1a1a1a] flex items-center justify-center">
+        <div className="aspect-[4/3] bg-[#1a1a1a] flex items-center justify-center relative">
           <div className="w-24 h-40 bg-[#222] rounded-xl border border-[#333]" />
+          {/* Multi-file badge */}
+          {(project.version === 2 || project.files) && (
+            <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-purple-600/90 text-xs rounded-full">
+              Multi-file
+            </div>
+          )}
         </div>
 
         <div className="p-4">

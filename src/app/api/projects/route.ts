@@ -38,20 +38,34 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { name, description, code } = await request.json();
+  const { name, description, code, files, dependencies, version } = await request.json();
 
-  if (!code) {
-    return NextResponse.json({ error: "Code is required" }, { status: 400 });
+  // Support both old single-file (code) and new multi-file (files) format
+  if (!code && !files) {
+    return NextResponse.json({ error: "Code or files is required" }, { status: 400 });
+  }
+
+  const projectData: any = {
+    user_id: user.id,
+    name: name || "Untitled Project",
+    description,
+    version: version || 1,
+  };
+
+  // If files provided (multi-file project), store as JSON
+  if (files) {
+    projectData.files = files;
+    projectData.dependencies = dependencies || {};
+    // Also store App.js in code for backward compatibility
+    projectData.code = files["App.js"]?.contents || "";
+  } else {
+    // Single file project (legacy)
+    projectData.code = code;
   }
 
   const { data, error } = await supabase
     .from("projects")
-    .insert({
-      user_id: user.id,
-      name: name || "Untitled Project",
-      description,
-      code,
-    })
+    .insert(projectData)
     .select()
     .single();
 
@@ -74,20 +88,34 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id, name, description, code } = await request.json();
+  const { id, name, description, code, files, dependencies, version } = await request.json();
 
   if (!id) {
     return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
   }
 
+  const updateData: any = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (name !== undefined) updateData.name = name;
+  if (description !== undefined) updateData.description = description;
+  if (version !== undefined) updateData.version = version;
+
+  // Handle multi-file projects
+  if (files) {
+    updateData.files = files;
+    updateData.dependencies = dependencies || {};
+    // Also update code for backward compatibility
+    updateData.code = files["App.js"]?.contents || "";
+  } else if (code !== undefined) {
+    // Single file update (legacy)
+    updateData.code = code;
+  }
+
   const { data, error } = await supabase
     .from("projects")
-    .update({
-      name,
-      description,
-      code,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updateData)
     .eq("id", id)
     .eq("user_id", user.id)
     .select()
