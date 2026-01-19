@@ -40,13 +40,14 @@ interface FileChange {
 }
 
 // Available AI models
-export type AIModel = "claude-sonnet-4" | "gpt-4o" | "gemini-pro" | "gemini-flash";
+export type AIModel = "claude-sonnet-4" | "claude-opus-4" | "gpt-4o" | "gemini-pro" | "gemini-flash";
 
 const modelOptions: { value: AIModel; label: string; icon: string; description: string }[] = [
-  { value: "claude-sonnet-4", label: "Claude Sonnet 4", icon: "Anthropic", description: "Best for coding" },
+  { value: "claude-sonnet-4", label: "Sonnet 4", icon: "Anthropic", description: "Best for coding" },
+  { value: "claude-opus-4", label: "Opus 4", icon: "Anthropic", description: "Most intelligent" },
   { value: "gpt-4o", label: "GPT-4o", icon: "OpenAI", description: "Very capable" },
-  { value: "gemini-pro", label: "Gemini 1.5 Pro", icon: "Google", description: "Powerful" },
-  { value: "gemini-flash", label: "Gemini 2.0 Flash", icon: "Google", description: "Very fast" },
+  { value: "gemini-pro", label: "Gemini Pro", icon: "Google", description: "Powerful" },
+  { value: "gemini-flash", label: "Gemini Flash", icon: "Google", description: "Very fast" },
 ];
 
 interface ChatPanelProps {

@@ -18,7 +18,8 @@ interface Message {
 // Available AI models
 type AIModel = 
   | "gpt-4o" 
-  | "claude-sonnet-4" 
+  | "claude-sonnet-4"
+  | "claude-opus-4" 
   | "gemini-pro" 
   | "gemini-flash";
 
@@ -121,8 +122,8 @@ async function handleAnthropic(
   messages.push({ role: "user", content: userContent });
 
   // Map to actual Anthropic model names
-  const anthropicModel = model === "claude-opus-4.5" 
-    ? "claude-sonnet-4-20250514"  // Use Sonnet 4 as Opus isn't available yet
+  const anthropicModel = model === "claude-opus-4" 
+    ? "claude-sonnet-4-20250514"
     : "claude-sonnet-4-20250514";
 
   const stream = await anthropic.messages.stream({
@@ -151,8 +152,8 @@ async function handleGemini(
   const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
   
   // Map to actual Gemini model names
-  const geminiModel = modelId === "gemini-3-flash" 
-    ? "gemini-2.0-flash"
+  const geminiModel = modelId === "gemini-flash" 
+    ? "gemini-2.0-flash-exp"
     : "gemini-1.5-pro";
     
   const model = genAI.getGenerativeModel({ model: geminiModel });
