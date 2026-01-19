@@ -7,11 +7,10 @@ import { Mic, Globe, ChevronDown, Sparkles } from "lucide-react";
 
 // AI Models available
 const AI_MODELS = [
-  { id: "claude-sonnet-4.5", name: "Sonnet 4.5", icon: "sparkles" },
-  { id: "claude-opus-4.5", name: "Opus 4.5", icon: "sparkles" },
-  { id: "gpt-5.2", name: "GPT-5.2", icon: "sparkles" },
-  { id: "gemini-3-pro", name: "Gemini 3 Pro", icon: "sparkles" },
-  { id: "gemini-3-flash", name: "Gemini 3 Flash", icon: "sparkles" },
+  { id: "claude-sonnet-4", name: "Claude Sonnet 4", icon: "sparkles" },
+  { id: "gpt-4o", name: "GPT-4o", icon: "sparkles" },
+  { id: "gemini-pro", name: "Gemini 1.5 Pro", icon: "sparkles" },
+  { id: "gemini-flash", name: "Gemini 2.0 Flash", icon: "sparkles" },
 ];
 
 export default function HomePage() {
