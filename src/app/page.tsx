@@ -1,65 +1,66 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import ChatPanel from "@/components/ChatPanel";
+import CodePreview from "@/components/CodePreview";
+import { defaultAppCode } from "@/lib/templates";
+import { Sparkles, Github, ExternalLink } from "lucide-react";
 
 export default function Home() {
+  const [code, setCode] = useState(defaultAppCode);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleCodeGenerated = (newCode: string) => {
+    setCode(newCode);
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="h-screen flex flex-col bg-[#0a0a0a]">
+      {/* Navigation */}
+      <nav className="h-14 border-b border-[#222] flex items-center justify-between px-4">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+            <Sparkles className="w-5 h-5 text-white" />
+          </div>
+          <span className="text-lg font-bold">AppForge AI</span>
+          <span className="text-xs px-2 py-0.5 bg-purple-500/20 text-purple-400 rounded-full">
+            Beta
+          </span>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
+        
+        <div className="flex items-center gap-3">
           <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
+            href="https://github.com"
             target="_blank"
             rel="noopener noreferrer"
+            className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
+            <Github className="w-4 h-4" />
+            <span className="hidden sm:inline">GitHub</span>
           </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          <button className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+            <ExternalLink className="w-4 h-4" />
+            Export App
+          </button>
         </div>
-      </main>
+      </nav>
+
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Chat Panel */}
+        <div className="w-[400px] border-r border-[#222] flex-shrink-0">
+          <ChatPanel
+            onCodeGenerated={handleCodeGenerated}
+            isGenerating={isGenerating}
+            setIsGenerating={setIsGenerating}
+          />
+        </div>
+
+        {/* Code Preview */}
+        <div className="flex-1">
+          <CodePreview code={code} isGenerating={isGenerating} />
+        </div>
+      </div>
     </div>
   );
 }
