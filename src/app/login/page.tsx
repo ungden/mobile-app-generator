@@ -18,6 +18,9 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "signup" | "magic">("login");
 
   const supabase = createClient();
+  
+  // Debug: Check if Supabase is configured
+  const isSupabaseConfigured = !!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
@@ -55,34 +58,48 @@ export default function LoginPage() {
     setError("");
     setMessage("");
 
-    if (mode === "signup") {
-      // Sign up
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
+    try {
+      if (mode === "signup") {
+        // Sign up
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
 
-      if (error) {
-        setError(error.message);
-      } else {
-        setMessage("Check your email to confirm your account!");
-      }
-    } else {
-      // Sign in
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+        console.log("Signup response:", { data, error });
 
-      if (error) {
-        setError(error.message);
+        if (error) {
+          setError(error.message);
+        } else if (data?.user) {
+          // If email confirmation is disabled, user is logged in immediately
+          if (data.session) {
+            router.push("/dashboard");
+          } else {
+            setMessage("Check your email to confirm your account!");
+          }
+        }
       } else {
-        router.push("/dashboard");
+        // Sign in
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        console.log("Login response:", { data, error });
+
+        if (error) {
+          setError(error.message);
+        } else if (data?.session) {
+          router.push("/dashboard");
+        } else {
+          setError("Login failed. Please try again.");
+        }
       }
+    } catch (err: any) {
+      console.error("Auth error:", err);
+      setError(err.message || "An unexpected error occurred");
     }
+    
     setIsLoading(false);
   };
 
@@ -132,6 +149,11 @@ export default function LoginPage() {
           <p className="text-gray-400 mb-6">Sign in to continue building apps</p>
 
           {/* Error/Success messages */}
+          {!isSupabaseConfigured && (
+            <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 px-4 py-3 rounded-lg mb-4 text-sm">
+              Supabase is not configured. Please set environment variables.
+            </div>
+          )}
           {error && (
             <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg mb-4 text-sm">
               {error}
