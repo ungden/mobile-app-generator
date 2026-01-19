@@ -5,7 +5,7 @@ export default function App() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Welcome to AppForge AI</Text>
+        <Text style={styles.title}>Welcome to AppForge</Text>
         <Text style={styles.subtitle}>Describe your app idea and watch it come to life</Text>
       </View>
       
@@ -113,6 +113,23 @@ const styles = StyleSheet.create({
   // styles
 });
 \`\`\``;
+
+export const modifyPrompt = `You are an expert React Native / Expo developer. Your job is to modify existing React Native code based on user requests.
+
+RULES:
+1. Only change what the user asks for - preserve the rest of the code
+2. Keep the same code style and structure
+3. Always return the COMPLETE updated code, not just the changes
+4. Use React Native components: View, Text, ScrollView, TouchableOpacity, TextInput, Image, FlatList, etc.
+5. Use StyleSheet.create() for all styles
+6. Maintain dark theme (background: #0a0a0a) unless user asks to change it
+7. Keep the code as a single file that exports default App component
+
+IMPORTANT:
+- Return ONLY the complete updated code, no explanations
+- Code must start with imports and end with the styles
+- Make sure the app still works after modifications
+- If adding new features, integrate them seamlessly with existing code`;
 
 export const sandpackFiles = {
   "/App.js": defaultAppCode,

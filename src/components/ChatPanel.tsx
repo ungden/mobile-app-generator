@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, Sparkles, User } from "lucide-react";
+import { Send, Loader2, Sparkles, User, ChevronDown, RotateCcw } from "lucide-react";
 
 interface Message {
   id: string;
@@ -9,27 +9,41 @@ interface Message {
   content: string;
 }
 
+export type AIModel = "gpt-4o" | "claude-3.5-sonnet" | "gemini-pro";
+
+const modelOptions: { value: AIModel; label: string; icon: string }[] = [
+  { value: "gpt-4o", label: "GPT-4o", icon: "OpenAI" },
+  { value: "claude-3.5-sonnet", label: "Claude 3.5", icon: "Anthropic" },
+  { value: "gemini-pro", label: "Gemini Pro", icon: "Google" },
+];
+
 interface ChatPanelProps {
   onCodeGenerated: (code: string) => void;
   isGenerating: boolean;
   setIsGenerating: (value: boolean) => void;
+  initialPrompt?: string;
 }
 
 export default function ChatPanel({
   onCodeGenerated,
   isGenerating,
   setIsGenerating,
+  initialPrompt = "",
 }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
       role: "assistant",
       content:
-        "Hi! I'm AppForge AI. Describe the mobile app you want to create and I'll generate the code for you. For example: 'Create a fitness tracker app with workout logging'",
+        "Hi! I'm AppForge AI. Describe the mobile app you want to create and I'll generate the code for you. Feel free to ask for modifications after!",
     },
   ]);
   const [input, setInput] = useState("");
+  const [selectedModel, setSelectedModel] = useState<AIModel>("gpt-4o");
+  const [showModelDropdown, setShowModelDropdown] = useState(false);
+  const [currentCode, setCurrentCode] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const initialPromptProcessed = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -39,14 +53,25 @@ export default function ChatPanel({
     scrollToBottom();
   }, [messages]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isGenerating) return;
+  // Handle initial prompt from URL
+  useEffect(() => {
+    if (initialPrompt && !initialPromptProcessed.current) {
+      initialPromptProcessed.current = true;
+      setInput(initialPrompt);
+      // Auto-submit after a short delay
+      setTimeout(() => {
+        handleSubmitWithPrompt(initialPrompt);
+      }, 500);
+    }
+  }, [initialPrompt]);
+
+  const handleSubmitWithPrompt = async (promptText: string) => {
+    if (!promptText.trim() || isGenerating) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: input,
+      content: promptText,
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -54,33 +79,102 @@ export default function ChatPanel({
     setIsGenerating(true);
 
     try {
+      // Build conversation history for context
+      const conversationHistory = messages
+        .filter((m) => m.id !== "1") // Exclude initial greeting
+        .map((m) => ({ role: m.role, content: m.content }));
+
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: input }),
+        body: JSON.stringify({
+          prompt: promptText,
+          model: selectedModel,
+          history: conversationHistory,
+          currentCode: currentCode,
+        }),
       });
 
-      const data = await response.json();
+      // Handle streaming response
+      if (response.headers.get("content-type")?.includes("text/event-stream")) {
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let fullCode = "";
 
-      if (data.code) {
-        onCodeGenerated(data.code);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            role: "assistant",
-            content: "I've generated your app! Check the preview on the right. Feel free to ask for modifications.",
-          },
-        ]);
-      } else if (data.error) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            role: "assistant",
-            content: `Error: ${data.error}. Please make sure your API key is configured.`,
-          },
-        ]);
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value);
+            fullCode += chunk;
+            
+            // Check for clean code marker
+            if (fullCode.includes("__CLEAN_CODE__")) {
+              const cleanCode = fullCode.split("__CLEAN_CODE__")[1].trim();
+              onCodeGenerated(cleanCode);
+              fullCode = cleanCode;
+            } else {
+              // Remove markdown if present for preview
+              let previewCode = fullCode;
+              if (previewCode.includes("```")) {
+                previewCode = previewCode
+                  .replace(/```(?:javascript|jsx|js|tsx|react)?\n?/g, "")
+                  .replace(/```\n?/g, "")
+                  .trim();
+              }
+              onCodeGenerated(previewCode);
+            }
+          }
+
+          if (fullCode) {
+            // Final cleanup
+            let cleanCode = fullCode;
+            if (cleanCode.includes("```")) {
+              cleanCode = cleanCode
+                .replace(/```(?:javascript|jsx|js|tsx|react)?\n?/g, "")
+                .replace(/```\n?/g, "")
+                .trim();
+            }
+            setCurrentCode(cleanCode);
+            onCodeGenerated(cleanCode);
+            
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: Date.now().toString(),
+                role: "assistant",
+                content:
+                  "Done! I've updated your app. Check the preview on the right. Want any changes?",
+              },
+            ]);
+          }
+        }
+      } else if (response.ok) {
+        // Fallback for non-streaming response
+        const data = await response.json();
+
+        if (data.code) {
+          setCurrentCode(data.code);
+          onCodeGenerated(data.code);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              role: "assistant",
+              content:
+                "Done! I've generated your app. Check the preview on the right. Feel free to ask for modifications!",
+            },
+          ]);
+        } else if (data.error) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              role: "assistant",
+              content: `Error: ${data.error}`,
+            },
+          ]);
+        }
       }
     } catch (error) {
       setMessages((prev) => [
@@ -96,17 +190,74 @@ export default function ChatPanel({
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await handleSubmitWithPrompt(input);
+  };
+
+  const resetConversation = () => {
+    setMessages([
+      {
+        id: "1",
+        role: "assistant",
+        content:
+          "Hi! I'm AppForge AI. Describe the mobile app you want to create and I'll generate the code for you. Feel free to ask for modifications after!",
+      },
+    ]);
+    setCurrentCode("");
+  };
+
   return (
     <div className="flex flex-col h-full bg-[#0a0a0a]">
       {/* Header */}
       <div className="p-4 border-b border-[#222]">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-purple-500" />
-          AppForge AI
-        </h2>
-        <p className="text-sm text-gray-500 mt-1">
-          Describe your app idea
-        </p>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-purple-500" />
+            AI Assistant
+          </h2>
+          <button
+            onClick={resetConversation}
+            className="p-2 text-gray-400 hover:text-white hover:bg-[#222] rounded-lg transition-colors"
+            title="Start new conversation"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Model Selector */}
+        <div className="relative">
+          <button
+            onClick={() => setShowModelDropdown(!showModelDropdown)}
+            className="flex items-center gap-2 bg-[#1a1a1a] border border-[#333] rounded-lg px-3 py-2 text-sm w-full hover:border-[#444] transition-colors"
+          >
+            <div className="w-2 h-2 rounded-full bg-green-400" />
+            <span className="flex-1 text-left">
+              {modelOptions.find((m) => m.value === selectedModel)?.label}
+            </span>
+            <ChevronDown className="w-4 h-4 text-gray-400" />
+          </button>
+
+          {showModelDropdown && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-[#1a1a1a] border border-[#333] rounded-lg shadow-xl z-50 overflow-hidden">
+              {modelOptions.map((model) => (
+                <button
+                  key={model.value}
+                  onClick={() => {
+                    setSelectedModel(model.value);
+                    setShowModelDropdown(false);
+                  }}
+                  className={`w-full text-left px-3 py-2.5 text-sm hover:bg-[#222] transition-colors flex items-center justify-between ${
+                    selectedModel === model.value ? "bg-[#222]" : ""
+                  }`}
+                >
+                  <span>{model.label}</span>
+                  <span className="text-xs text-gray-500">{model.icon}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Messages */}
@@ -165,7 +316,11 @@ export default function ChatPanel({
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Describe your app idea..."
+            placeholder={
+              currentCode
+                ? "Describe changes you want..."
+                : "Describe your app idea..."
+            }
             disabled={isGenerating}
             className="w-full bg-[#1a1a1a] border border-[#333] rounded-xl px-4 py-3 pr-12 text-sm focus:outline-none focus:border-purple-500 transition-colors disabled:opacity-50"
           />
@@ -178,7 +333,9 @@ export default function ChatPanel({
           </button>
         </div>
         <p className="text-xs text-gray-600 mt-2 text-center">
-          Try: "Create a habit tracker app" or "Build a recipe app with categories"
+          {currentCode
+            ? 'Try: "Add a dark mode toggle" or "Change the colors to blue"'
+            : 'Try: "Create a habit tracker" or "Build a recipe app"'}
         </p>
       </form>
     </div>
