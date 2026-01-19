@@ -100,6 +100,12 @@ export default function LandingPage() {
 
             <div className="flex items-center gap-4">
               <Link
+                href="/login"
+                className="text-gray-400 hover:text-white transition-colors text-sm"
+              >
+                Sign In
+              </Link>
+              <Link
                 href="/build"
                 className="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
               >
@@ -115,7 +121,7 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 rounded-full px-4 py-1.5 mb-8">
             <Star className="w-4 h-4 text-purple-400" />
-            <span className="text-sm text-purple-300">Now with GPT-4o & Claude 3.5</span>
+            <span className="text-sm text-purple-300">Now with GPT-4.1 & Claude Sonnet 4</span>
           </div>
 
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6">

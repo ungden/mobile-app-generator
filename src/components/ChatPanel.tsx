@@ -9,12 +9,13 @@ interface Message {
   content: string;
 }
 
-export type AIModel = "gpt-4o" | "claude-3.5-sonnet" | "gemini-pro";
+export type AIModel = "gpt-4.1" | "gpt-4o" | "claude-sonnet-4" | "gemini-2.0-flash";
 
 const modelOptions: { value: AIModel; label: string; icon: string }[] = [
+  { value: "gpt-4.1", label: "GPT-4.1", icon: "OpenAI" },
   { value: "gpt-4o", label: "GPT-4o", icon: "OpenAI" },
-  { value: "claude-3.5-sonnet", label: "Claude 3.5", icon: "Anthropic" },
-  { value: "gemini-pro", label: "Gemini Pro", icon: "Google" },
+  { value: "claude-sonnet-4", label: "Claude Sonnet 4", icon: "Anthropic" },
+  { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash", icon: "Google" },
 ];
 
 interface ChatPanelProps {
@@ -39,7 +40,7 @@ export default function ChatPanel({
     },
   ]);
   const [input, setInput] = useState("");
-  const [selectedModel, setSelectedModel] = useState<AIModel>("gpt-4o");
+  const [selectedModel, setSelectedModel] = useState<AIModel>("gpt-4.1");
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [currentCode, setCurrentCode] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
