@@ -1,16 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import Logo from "@/components/Logo";
-import { Github, Mail, Loader2, ArrowLeft } from "lucide-react";
+import { Github, Mail, Loader2, ArrowLeft, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [mode, setMode] = useState<"login" | "signup" | "magic">("login");
 
   const supabase = createClient();
 
@@ -40,6 +45,45 @@ export default function LoginPage() {
       setError(error.message);
       setIsLoading(false);
     }
+  };
+
+  const handleEmailPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+
+    setIsLoading(true);
+    setError("");
+    setMessage("");
+
+    if (mode === "signup") {
+      // Sign up
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        setMessage("Check your email to confirm your account!");
+      }
+    } else {
+      // Sign in
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        router.push("/dashboard");
+      }
+    }
+    setIsLoading(false);
   };
 
   const handleMagicLink = async (e: React.FormEvent) => {
@@ -147,8 +191,39 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Email form */}
-          <form onSubmit={handleMagicLink}>
+          {/* Mode tabs */}
+          <div className="flex mb-4 bg-[#1a1a1a] rounded-lg p-1">
+            <button
+              type="button"
+              onClick={() => setMode("login")}
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                mode === "login" ? "bg-[#333] text-white" : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("signup")}
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                mode === "signup" ? "bg-[#333] text-white" : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Sign Up
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("magic")}
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                mode === "magic" ? "bg-[#333] text-white" : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Magic Link
+            </button>
+          </div>
+
+          {/* Email/Password form */}
+          <form onSubmit={mode === "magic" ? handleMagicLink : handleEmailPassword}>
             <div className="mb-4">
               <label htmlFor="email" className="block text-sm font-medium text-gray-400 mb-2">
                 Email address
@@ -167,18 +242,48 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {mode !== "magic" && (
+              <div className="mb-4">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-400 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    id="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg px-4 py-3 pr-10 text-sm focus:outline-none focus:border-purple-500 transition-colors"
+                    disabled={isLoading}
+                    minLength={6}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+                {mode === "signup" && (
+                  <p className="text-xs text-gray-500 mt-1">Minimum 6 characters</p>
+                )}
+              </div>
+            )}
+
             <button
               type="submit"
-              disabled={isLoading || !email}
+              disabled={isLoading || !email || (mode !== "magic" && !password)}
               className="w-full bg-purple-600 hover:bg-purple-500 px-4 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Sending...
+                  {mode === "magic" ? "Sending..." : mode === "signup" ? "Creating account..." : "Signing in..."}
                 </>
               ) : (
-                "Send magic link"
+                mode === "magic" ? "Send magic link" : mode === "signup" ? "Create account" : "Sign in"
               )}
             </button>
           </form>

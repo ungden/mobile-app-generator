@@ -232,6 +232,10 @@ AppRegistry.runApplication('App', { rootTag: document.getElementById('root') });
             externalResources: [
               "https://unpkg.com/react-native-web@0.19.10/dist/index.js",
             ],
+            recompileMode: "delayed",
+            recompileDelay: 1000,
+            autorun: !isGenerating,
+            autoReload: false,
           }}
         >
           <ErrorListener onError={handleError} />
