@@ -76,7 +76,7 @@ export default function HomePage() {
       </nav>
 
       {/* Main Content - Centered */}
-      <main className="flex-1 flex flex-col items-center justify-center px-4 -mt-16">
+      <main className="flex-1 flex flex-col items-center justify-center px-4">
         {/* Headline */}
         <h1 className="text-4xl sm:text-5xl font-bold text-center mb-3 tracking-tight">
           Build native mobile apps, fast.
