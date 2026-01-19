@@ -17,13 +17,15 @@ interface Message {
   content: string;
 }
 
-// Available AI models (real model names)
-export type AIModel = "gpt-4o" | "claude-sonnet-4" | "gemini-2.0-flash";
+// Available AI models
+export type AIModel = "claude-sonnet-4.5" | "claude-opus-4.5" | "gpt-5.2" | "gemini-3-pro" | "gemini-3-flash";
 
 const modelOptions: { value: AIModel; label: string; icon: string; description: string }[] = [
-  { value: "claude-sonnet-4", label: "Claude Sonnet", icon: "Anthropic", description: "Best for coding" },
-  { value: "gpt-4o", label: "GPT-4o", icon: "OpenAI", description: "Fast & capable" },
-  { value: "gemini-2.0-flash", label: "Gemini Flash", icon: "Google", description: "Very fast" },
+  { value: "claude-sonnet-4.5", label: "Sonnet 4.5", icon: "Anthropic", description: "Best for coding" },
+  { value: "claude-opus-4.5", label: "Opus 4.5", icon: "Anthropic", description: "Most intelligent" },
+  { value: "gpt-5.2", label: "GPT-5.2", icon: "OpenAI", description: "Very capable" },
+  { value: "gemini-3-pro", label: "Gemini 3 Pro", icon: "Google", description: "Powerful" },
+  { value: "gemini-3-flash", label: "Gemini 3 Flash", icon: "Google", description: "Very fast" },
 ];
 
 interface ChatPanelProps {
@@ -50,7 +52,7 @@ export default function ChatPanel({
     },
   ]);
   const [input, setInput] = useState("");
-  const [selectedModel, setSelectedModel] = useState<AIModel>("claude-sonnet-4");
+  const [selectedModel, setSelectedModel] = useState<AIModel>("claude-sonnet-4.5");
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [currentCode, setCurrentCode] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<AppCategory | null>(

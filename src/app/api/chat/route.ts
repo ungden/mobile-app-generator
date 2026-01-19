@@ -2,91 +2,33 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { createClient } from "@/lib/supabase/server";
-import { checkUsageLimit, incrementUsageManual } from "@/lib/usage";
-import { isModelAllowedForTier, PlanType } from "@/lib/stripe";
 import {
   APP_CATEGORIES,
   getEnhancedSystemPrompt,
   getEnhancedModifyPrompt,
 } from "@/lib/app-templates";
-import { checkIpRateLimit, incrementIpUsage, getClientIp } from "@/lib/rate-limit";
 
-export const runtime = "nodejs"; // Changed from edge to support Supabase server client
+export const runtime = "nodejs";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
-// Available AI models (using real model names)
-type AIModel = "gpt-4o" | "claude-sonnet-4" | "claude-opus-4" | "gemini-2.0-flash";
+// Available AI models
+type AIModel = 
+  | "gpt-5.2" 
+  | "claude-sonnet-4.5" 
+  | "claude-opus-4.5" 
+  | "gemini-3-pro" 
+  | "gemini-3-flash";
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, model = "gpt-4.1", history = [], currentCode = "", categoryId = "" } = await request.json();
+    const { prompt, model = "claude-sonnet-4.5", history = [], currentCode = "", categoryId = "" } = await request.json();
 
     if (!prompt) {
       return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
-    }
-
-    // Check authentication and usage limits
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    // Determine user's subscription tier
-    let userTier: PlanType = "free";
-
-    if (user) {
-      // User is logged in - check their usage limits and tier
-      const usage = await checkUsageLimit(user.id);
-      userTier = usage.tier;
-
-      if (!usage.allowed) {
-        const resetTime = usage.resetAt
-          ? `Resets at ${usage.resetAt.toLocaleTimeString()}`
-          : "Upgrade to Pro for unlimited generations";
-
-        return NextResponse.json(
-          {
-            error: `Daily limit reached (${usage.limit} generations). ${resetTime}`,
-            code: "LIMIT_REACHED",
-            usage,
-          },
-          { status: 429 }
-        );
-      }
-
-      // Check if user's tier allows this model
-      if (!isModelAllowedForTier(model, userTier)) {
-        return NextResponse.json(
-          {
-            error: `${model} is not available on the ${userTier} plan. Upgrade to Pro for all models.`,
-            code: "MODEL_NOT_ALLOWED",
-            allowedModels: userTier === "free" ? ["gemini-2.0-flash"] : undefined,
-          },
-          { status: 403 }
-        );
-      }
-    }
-    // Anonymous users - rate limit by IP
-    if (!user) {
-      const clientIp = getClientIp(request);
-      const ipLimit = checkIpRateLimit(clientIp);
-
-      if (!ipLimit.allowed) {
-        return NextResponse.json(
-          {
-            error: `You've reached the limit for anonymous users (${ipLimit.limit} generations/day). Sign up for free to get ${5} generations/day, or upgrade to Pro for unlimited access.`,
-            code: "ANONYMOUS_LIMIT_REACHED",
-            resetAt: ipLimit.resetAt.toISOString(),
-          },
-          { status: 429 }
-        );
-      }
-
-      // Increment IP usage before making the API call
-      incrementIpUsage(clientIp);
     }
 
     // Get category for enhanced prompts
@@ -101,21 +43,15 @@ export async function POST(request: NextRequest) {
 
     const userContent = currentCode
       ? `Current code:\n\`\`\`javascript\n${currentCode}\n\`\`\`\n\nUser request: ${prompt}\n\nModify the code according to the request. Return the complete updated code.`
-      : prompt; // Prompt is already enhanced by the client
-
-    // Increment usage before making the API call (to prevent abuse)
-    // We count the attempt, not just successful completions
-    if (user) {
-      await incrementUsageManual(user.id, model);
-    }
+      : prompt;
 
     // Route to appropriate provider based on model
-    if (model === "gpt-4o" || model.startsWith("gpt-")) {
-      return handleOpenAI(model, systemContent, userContent, history);
-    } else if (model === "claude-sonnet-4" || model === "claude-opus-4" || model.startsWith("claude-")) {
+    if (model === "gpt-5.2" || model.startsWith("gpt-")) {
+      return handleOpenAI(systemContent, userContent, history);
+    } else if (model.startsWith("claude-")) {
       return handleAnthropic(model, systemContent, userContent, history);
-    } else if (model === "gemini-2.0-flash" || model.startsWith("gemini-")) {
-      return handleGemini(systemContent, userContent, history);
+    } else if (model.startsWith("gemini-")) {
+      return handleGemini(model, systemContent, userContent, history);
     }
 
     return NextResponse.json({ error: "Invalid model selected" }, { status: 400 });
@@ -129,7 +65,6 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleOpenAI(
-  model: string,
   systemContent: string,
   userContent: string,
   history: Message[]
@@ -154,10 +89,10 @@ async function handleOpenAI(
   messages.push({ role: "user", content: userContent });
 
   const stream = await openai.chat.completions.create({
-    model: model,
+    model: "gpt-5.2-2025-12-11",
     messages,
     temperature: 0.7,
-    max_tokens: 8000, // Increased for MVP-quality code
+    max_tokens: 8000,
     stream: true,
   });
 
@@ -172,7 +107,7 @@ async function handleAnthropic(
 ) {
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(
-      { error: "Anthropic API key not configured. Add ANTHROPIC_API_KEY to environment variables." },
+      { error: "Anthropic API key not configured" },
       { status: 500 }
     );
   }
@@ -187,13 +122,13 @@ async function handleAnthropic(
   messages.push({ role: "user", content: userContent });
 
   // Map to actual Anthropic model names
-  const anthropicModel = model === "claude-opus-4" 
-    ? "claude-sonnet-4-20250514"  // Use sonnet as fallback (opus may not be available)
-    : "claude-sonnet-4-20250514";
+  const anthropicModel = model === "claude-opus-4.5" 
+    ? "claude-opus-4-5-20251101"
+    : "claude-sonnet-4-5-20250929";
 
   const stream = await anthropic.messages.stream({
     model: anthropicModel,
-    max_tokens: 8000, // Increased for MVP-quality code
+    max_tokens: 8000,
     system: systemContent,
     messages,
   });
@@ -202,20 +137,26 @@ async function handleAnthropic(
 }
 
 async function handleGemini(
+  modelId: string,
   systemContent: string,
   userContent: string,
   history: Message[]
 ) {
   if (!process.env.GOOGLE_AI_API_KEY) {
     return NextResponse.json(
-      { error: "Google AI API key not configured. Add GOOGLE_AI_API_KEY to environment variables." },
+      { error: "Google AI API key not configured" },
       { status: 500 }
     );
   }
 
   const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
-  // Use Gemini 2.0 Flash - fast and capable
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+  
+  // Map to actual Gemini model names
+  const geminiModel = modelId === "gemini-3-flash" 
+    ? "gemini-3-flash-preview"
+    : "gemini-3-pro-preview";
+    
+  const model = genAI.getGenerativeModel({ model: geminiModel });
 
   const chat = model.startChat({
     history: [
