@@ -34,6 +34,9 @@ interface ChatPanelProps {
   setIsGenerating: (value: boolean) => void;
   initialPrompt?: string;
   initialCategory?: string;
+  currentCode?: string;
+  pendingFixError?: string | null;
+  onFixErrorHandled?: () => void;
 }
 
 export default function ChatPanel({
@@ -42,6 +45,9 @@ export default function ChatPanel({
   setIsGenerating,
   initialPrompt = "",
   initialCategory = "",
+  currentCode: externalCode,
+  pendingFixError,
+  onFixErrorHandled,
 }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -91,6 +97,36 @@ export default function ChatPanel({
       }, 500);
     }
   }, [initialPrompt]);
+
+  // Handle "Fix with AI" - auto-trigger when pendingFixError is set
+  useEffect(() => {
+    if (pendingFixError && !isGenerating) {
+      // Use the external code (from parent) if available, otherwise use local currentCode
+      const codeToFix = externalCode || currentCode;
+      
+      const fixPrompt = `Fix this error in my React Native code:
+
+ERROR: ${pendingFixError}
+
+Please analyze the error and fix the code. Return the complete fixed code.`;
+      
+      // Add a message showing what we're fixing
+      const fixMessage: Message = {
+        id: Date.now().toString(),
+        role: "user",
+        content: `Fix this error: ${pendingFixError.split('\n')[0]}`,
+      };
+      setMessages((prev) => [...prev, fixMessage]);
+      
+      // Trigger the fix
+      handleSubmitWithPrompt(fixPrompt);
+      
+      // Clear the pending error
+      if (onFixErrorHandled) {
+        onFixErrorHandled();
+      }
+    }
+  }, [pendingFixError]);
 
   const handleSubmitWithPrompt = async (promptText: string) => {
     if (!promptText.trim() || isGenerating) return;

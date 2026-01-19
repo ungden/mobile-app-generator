@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     // Use enhanced prompts for better MVP generation
     const systemContent = currentCode
-      ? getEnhancedModifyPrompt(category)
+      ? getEnhancedModifyPrompt()
       : getEnhancedSystemPrompt(category);
 
     const userContent = currentCode

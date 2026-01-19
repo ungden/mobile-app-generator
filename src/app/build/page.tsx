@@ -37,6 +37,7 @@ function BuildContent() {
   const [isSaving, setIsSaving] = useState(false);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(projectId);
   const [isLoadingProject, setIsLoadingProject] = useState(!!projectId);
+  const [pendingFixError, setPendingFixError] = useState<string | null>(null);
 
   // Load project if ID is provided
   useEffect(() => {
@@ -70,6 +71,12 @@ function BuildContent() {
 
   const handleCodeGenerated = (newCode: string) => {
     setCode(newCode);
+    setPendingFixError(null); // Clear any pending fix when new code is generated
+  };
+
+  // Handle fix error request from CodePreview
+  const handleFixError = (error: string) => {
+    setPendingFixError(error);
   };
 
   const handleDownload = async (type: "js" | "zip") => {
@@ -237,12 +244,19 @@ function BuildContent() {
                 setIsGenerating={setIsGenerating}
                 initialPrompt={initialPrompt}
                 initialCategory={initialCategory}
+                currentCode={code}
+                pendingFixError={pendingFixError}
+                onFixErrorHandled={() => setPendingFixError(null)}
               />
             </div>
 
             {/* Code Preview */}
             <div className="flex-1">
-              <CodePreview code={code} isGenerating={isGenerating} />
+              <CodePreview 
+                code={code} 
+                isGenerating={isGenerating} 
+                onFixError={handleFixError}
+              />
             </div>
           </>
         )}

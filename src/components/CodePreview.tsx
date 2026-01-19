@@ -5,14 +5,16 @@ import {
   SandpackLayout,
   SandpackCodeEditor,
   SandpackPreview,
+  useSandpack,
 } from "@codesandbox/sandpack-react";
 import { nightOwl } from "@codesandbox/sandpack-themes";
-import { Code2, Smartphone, Loader2, Tablet, Monitor } from "lucide-react";
-import { useState } from "react";
+import { Code2, Smartphone, Loader2, Tablet, AlertTriangle, Sparkles, RefreshCw } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
 
 interface CodePreviewProps {
   code: string;
   isGenerating: boolean;
+  onFixError?: (error: string) => void;
 }
 
 type DeviceType = "iphone15" | "iphoneSE" | "pixel" | "ipad";
@@ -64,9 +66,27 @@ const devices: {
   },
 ];
 
-export default function CodePreview({ code, isGenerating }: CodePreviewProps) {
+// Error listener component inside Sandpack
+function ErrorListener({ onError }: { onError: (error: string | null) => void }) {
+  const { sandpack } = useSandpack();
+  
+  useEffect(() => {
+    const errors = sandpack.error;
+    if (errors) {
+      onError(errors.message || String(errors));
+    } else {
+      onError(null);
+    }
+  }, [sandpack.error, onError]);
+
+  return null;
+}
+
+export default function CodePreview({ code, isGenerating, onFixError }: CodePreviewProps) {
   const [activeTab, setActiveTab] = useState<"preview" | "code">("preview");
   const [selectedDevice, setSelectedDevice] = useState<DeviceType>("iphone15");
+  const [error, setError] = useState<string | null>(null);
+  const [isFixing, setIsFixing] = useState(false);
 
   const device = devices.find((d) => d.id === selectedDevice) || devices[0];
   
@@ -75,6 +95,26 @@ export default function CodePreview({ code, isGenerating }: CodePreviewProps) {
   const scale = device.height > maxHeight ? maxHeight / device.height : 1;
   const scaledWidth = device.width * scale;
   const scaledHeight = device.height * scale;
+
+  const handleError = useCallback((err: string | null) => {
+    setError(err);
+  }, []);
+
+  const handleFixWithAI = () => {
+    if (error && onFixError) {
+      setIsFixing(true);
+      onFixError(error);
+      // Reset after triggering fix
+      setTimeout(() => setIsFixing(false), 1000);
+    }
+  };
+
+  // Extract short error message
+  const getShortError = (fullError: string) => {
+    // Get first line or first 100 chars
+    const firstLine = fullError.split('\n')[0];
+    return firstLine.length > 100 ? firstLine.slice(0, 100) + '...' : firstLine;
+  };
 
   return (
     <div className="h-full flex flex-col bg-[#0a0a0a]">
@@ -91,6 +131,7 @@ export default function CodePreview({ code, isGenerating }: CodePreviewProps) {
           >
             <Smartphone className="w-4 h-4" />
             Preview
+            {error && <span className="w-2 h-2 rounded-full bg-red-500" />}
           </button>
           <button
             onClick={() => setActiveTab("code")}
@@ -126,13 +167,47 @@ export default function CodePreview({ code, isGenerating }: CodePreviewProps) {
         )}
       </div>
 
+      {/* Error Banner */}
+      {error && !isGenerating && (
+        <div className="bg-red-500/10 border-b border-red-500/20 px-4 py-3">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-red-400">Error detected</p>
+              <p className="text-xs text-red-300/70 mt-1 font-mono truncate">
+                {getShortError(error)}
+              </p>
+            </div>
+            <button
+              onClick={handleFixWithAI}
+              disabled={isFixing || isGenerating}
+              className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-600/50 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              {isFixing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Fixing...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  Fix with AI
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       <div className="flex-1 relative overflow-hidden">
         {isGenerating && (
           <div className="absolute inset-0 bg-black/50 z-10 flex items-center justify-center">
             <div className="flex flex-col items-center gap-3">
               <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
-              <p className="text-sm text-gray-400">Generating your app...</p>
+              <p className="text-sm text-gray-400">
+                {isFixing ? "Fixing errors..." : "Generating your app..."}
+              </p>
             </div>
           </div>
         )}
@@ -159,6 +234,7 @@ AppRegistry.runApplication('App', { rootTag: document.getElementById('root') });
             ],
           }}
         >
+          <ErrorListener onError={handleError} />
           <SandpackLayout
             style={{
               height: "100%",

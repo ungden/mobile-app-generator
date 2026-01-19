@@ -1,4 +1,5 @@
-// Smart App Templates - Giúp AI generate MVP chất lượng cao ngay từ đầu
+// Smart App Templates - Học từ Lovable + Expo Skills
+// Focus: Beautiful UI first, Backend integration là optional
 
 export interface AppCategory {
   id: string;
@@ -7,11 +8,8 @@ export interface AppCategory {
   description: string;
   color: string;
   examplePrompts: string[];
-  // Context sẽ được inject vào system prompt để AI hiểu rõ hơn
   contextHints: string;
-  // Các UI patterns phổ biến cho loại app này
   uiPatterns: string[];
-  // Features thường có trong loại app này
   commonFeatures: string[];
 }
 
@@ -29,30 +27,20 @@ export const APP_CATEGORIES: AppCategory[] = [
       "App đặt đồ ăn như GrabFood",
     ],
     contextHints: `
-E-COMMERCE APP PATTERNS:
-- Product grid/list with images, prices, ratings
-- Product detail page with image carousel, size/color selectors, add to cart
-- Shopping cart with quantity controls, total calculation
-- Checkout flow with address, payment method selection
-- Order history and tracking
-- Search with filters (price range, category, rating)
-- Wishlist/favorites functionality
-- User reviews and ratings
+E-COMMERCE UI PATTERNS:
+- Product grid (2 columns) with image, name, price, rating badge
+- Product detail: large image, sizes/colors selector, "Add to Cart" button
+- Cart screen: item list with quantity +/-, total, checkout button
+- Search bar with filter chips (category, price range)
 
-COMMON DATA STRUCTURE:
-- Products: id, name, price, originalPrice, image, rating, reviews, category, sizes, colors, stock
-- Cart: items array with product, quantity, selectedSize, selectedColor
-- Orders: id, items, total, status, date, address
-
-UI COMPONENTS TO USE:
-- FlatList for product grids (numColumns: 2)
-- Image with aspect ratio for product photos
-- Badge for discounts/sale tags
-- Bottom sheet for filters
-- Tab bar for Home/Search/Cart/Profile
+MOCK DATA EXAMPLE:
+const products = [
+  { id: '1', name: 'Nike Air Max', price: 2500000, image: 'shoe1.jpg', rating: 4.8, colors: ['black', 'white'], sizes: [40, 41, 42] },
+  // 8-10 more items
+];
 `,
-    uiPatterns: ["Product Grid", "Cart Drawer", "Filter Bottom Sheet", "Checkout Flow"],
-    commonFeatures: ["Product Catalog", "Shopping Cart", "Search & Filter", "Wishlist", "Order Tracking"],
+    uiPatterns: ["Product Grid", "Cart Screen", "Filter Chips", "Quantity Selector"],
+    commonFeatures: ["Product Catalog", "Shopping Cart", "Search & Filter", "Wishlist"],
   },
   {
     id: "social",
@@ -67,32 +55,20 @@ UI COMPONENTS TO USE:
       "App dating như Tinder",
     ],
     contextHints: `
-SOCIAL MEDIA APP PATTERNS:
-- Feed with posts (image/video, caption, likes, comments)
-- Stories carousel at top
-- User profiles with avatar, bio, follower count, post grid
-- Like, comment, share interactions
-- Follow/unfollow functionality
-- Direct messaging with chat bubbles
-- Notifications list
-- Explore/discover page with trending content
+SOCIAL MEDIA UI PATTERNS:
+- Feed: vertical list of posts with avatar, name, image, caption, like/comment counts
+- Stories: horizontal scroll at top with circular avatars
+- Profile: header with avatar, stats (posts/followers/following), tab for posts grid
+- Double-tap to like with heart animation
 
-COMMON DATA STRUCTURE:
-- Posts: id, user, image, caption, likes, comments, timestamp
-- Users: id, name, username, avatar, bio, followers, following, posts
-- Comments: id, user, text, timestamp, likes
-- Messages: id, sender, text, timestamp, read
-
-UI COMPONENTS TO USE:
-- FlatList for infinite scroll feed
-- Stories horizontal ScrollView
-- Double-tap to like
-- Heart animation on like
-- Pull to refresh
-- Tab bar for Feed/Search/Create/Notifications/Profile
+MOCK DATA EXAMPLE:
+const posts = [
+  { id: '1', user: { name: 'Alex', avatar: 'avatar1.jpg' }, image: 'post1.jpg', caption: 'Beautiful sunset!', likes: 234, comments: 12 },
+  // 5-8 more items
+];
 `,
-    uiPatterns: ["Feed", "Stories", "Profile Grid", "Chat Bubbles", "Like Animation"],
-    commonFeatures: ["News Feed", "User Profiles", "Likes & Comments", "Stories", "Messaging"],
+    uiPatterns: ["Feed List", "Stories Bar", "Profile Header", "Like Animation"],
+    commonFeatures: ["News Feed", "User Profiles", "Likes & Comments", "Stories"],
   },
   {
     id: "fitness",
@@ -107,32 +83,21 @@ UI COMPONENTS TO USE:
       "Lịch tập gym với video hướng dẫn",
     ],
     contextHints: `
-FITNESS APP PATTERNS:
-- Dashboard with today's stats (steps, calories, workouts)
-- Workout plans with exercises list
-- Exercise detail with timer, sets, reps
-- Progress charts and statistics
-- Calendar view for workout history
-- Achievement badges and streaks
-- Body measurements tracking
-- Meal logging with calories
+FITNESS UI PATTERNS:
+- Dashboard: today's stats cards (steps, calories, water, active minutes)
+- Circular progress rings for daily goals
+- Workout list with duration, difficulty badge
+- Timer screen with large countdown, start/pause/reset buttons
+- Progress chart (weekly/monthly view)
 
-COMMON DATA STRUCTURE:
-- Workouts: id, name, exercises, duration, calories, date
-- Exercises: id, name, sets, reps, weight, restTime, instructions, image
-- DailyStats: date, steps, calories, water, sleep, workouts
-- Meals: id, name, calories, protein, carbs, fat, time
-
-UI COMPONENTS TO USE:
-- Circular progress indicators
-- Animated timers with countdown
-- Charts for progress visualization
-- Calendar heat map
-- Tab bar for Today/Workouts/Progress/Profile
-- Swipe to complete exercise
+MOCK DATA EXAMPLE:
+const todayStats = { steps: 8432, goal: 10000, calories: 1850, water: 6, workouts: 1 };
+const workouts = [
+  { id: '1', name: 'Morning Run', duration: 30, calories: 320, difficulty: 'medium' },
+];
 `,
-    uiPatterns: ["Stats Dashboard", "Circular Progress", "Timer", "Progress Charts", "Calendar View"],
-    commonFeatures: ["Workout Tracking", "Calorie Counter", "Progress Charts", "Timer", "Achievements"],
+    uiPatterns: ["Stats Dashboard", "Progress Rings", "Timer", "Activity List"],
+    commonFeatures: ["Workout Tracking", "Daily Goals", "Progress Charts", "Timer"],
   },
   {
     id: "productivity",
@@ -147,33 +112,21 @@ UI COMPONENTS TO USE:
       "Habit tracker hàng ngày",
     ],
     contextHints: `
-PRODUCTIVITY APP PATTERNS:
-- Task list with checkbox, priority, due date
-- Project/folder organization
-- Calendar integration
-- Reminders and notifications
-- Tags and categories
-- Search and filter
-- Drag to reorder
-- Swipe actions (complete, delete, edit)
+PRODUCTIVITY UI PATTERNS:
+- Task list with checkbox, title, due date badge, priority dot (red/yellow/green)
+- Swipe left to delete, swipe right to complete
+- FAB (floating action button) to add new task
+- Category tabs or filter chips
+- Empty state with illustration when no tasks
 
-COMMON DATA STRUCTURE:
-- Tasks: id, title, description, completed, priority, dueDate, project, tags
-- Projects: id, name, color, tasks
-- Notes: id, title, content, folder, tags, createdAt, updatedAt
-- Habits: id, name, frequency, streak, completedDates
-
-UI COMPONENTS TO USE:
-- Swipeable list items
-- Checkbox with animation
-- Priority indicators (colors)
-- Due date badges
-- Floating action button for new task
-- Bottom sheet for task details
-- Tab bar or drawer navigation
+MOCK DATA EXAMPLE:
+const tasks = [
+  { id: '1', title: 'Review PR', completed: false, priority: 'high', dueDate: '2024-01-15', category: 'Work' },
+  { id: '2', title: 'Buy groceries', completed: true, priority: 'low', dueDate: null, category: 'Personal' },
+];
 `,
-    uiPatterns: ["Task List", "Swipe Actions", "FAB", "Priority Tags", "Calendar Integration"],
-    commonFeatures: ["Task Management", "Categories", "Due Dates", "Reminders", "Search"],
+    uiPatterns: ["Task List", "Swipe Actions", "FAB", "Filter Chips", "Empty State"],
+    commonFeatures: ["Task Management", "Categories", "Due Dates", "Priority Levels"],
   },
   {
     id: "finance",
@@ -188,33 +141,22 @@ UI COMPONENTS TO USE:
       "Budget planner hàng tháng",
     ],
     contextHints: `
-FINANCE APP PATTERNS:
-- Balance overview with income/expense summary
-- Transaction list with categories
-- Add expense/income form
-- Budget categories with progress bars
-- Charts (pie for categories, line for trends)
-- Monthly/weekly/daily filters
-- Recurring transactions
-- Export reports
+FINANCE UI PATTERNS:
+- Balance card at top showing total, income, expense
+- Transaction list with icon, name, amount (+green/-red), date
+- Category breakdown (pie chart or horizontal bars)
+- Quick add FAB with amount input
+- Period selector (Today/Week/Month)
 
-COMMON DATA STRUCTURE:
-- Transactions: id, amount, type (income/expense), category, date, note
-- Categories: id, name, icon, color, budget
-- Budgets: id, category, limit, spent, period
-- Accounts: id, name, balance, type (cash, bank, card)
-
-UI COMPONENTS TO USE:
-- Pie chart for expense breakdown
-- Line chart for spending trends
-- Progress bars for budgets
-- Swipe to delete transaction
-- Category icons with colors
-- Tab bar for Home/Transactions/Budget/Stats
-- FAB for quick add
+MOCK DATA EXAMPLE:
+const balance = { total: 15000000, income: 20000000, expense: 5000000 };
+const transactions = [
+  { id: '1', name: 'Salary', amount: 20000000, type: 'income', category: 'Work', date: '2024-01-01', icon: 'briefcase' },
+  { id: '2', name: 'Coffee', amount: -55000, type: 'expense', category: 'Food', date: '2024-01-02', icon: 'coffee' },
+];
 `,
-    uiPatterns: ["Balance Card", "Transaction List", "Pie Chart", "Budget Progress", "Quick Add"],
-    commonFeatures: ["Expense Tracking", "Categories", "Budget Limits", "Charts", "Reports"],
+    uiPatterns: ["Balance Card", "Transaction List", "Category Chart", "Quick Add"],
+    commonFeatures: ["Expense Tracking", "Categories", "Income/Expense", "Reports"],
   },
   {
     id: "food",
@@ -229,32 +171,20 @@ UI COMPONENTS TO USE:
       "Meal planning cho tuần",
     ],
     contextHints: `
-FOOD & DELIVERY APP PATTERNS:
-- Restaurant list with ratings, cuisine type, delivery time
-- Menu with categories, items, prices
-- Food item detail with customization options
-- Cart with order summary
-- Delivery tracking with map
-- Order history
-- Favorites/saved restaurants
-- Search by cuisine, rating, distance
+FOOD APP UI PATTERNS:
+- Restaurant cards: image, name, rating stars, cuisine tags, delivery time
+- Horizontal category tabs (All, Pizza, Sushi, Burger, etc.)
+- Menu list grouped by category (Appetizers, Main, Drinks)
+- Cart bottom bar showing items count and total
+- Recipe card: image, title, cook time, difficulty, ingredients count
 
-COMMON DATA STRUCTURE:
-- Restaurants: id, name, image, rating, cuisine, deliveryTime, deliveryFee, minOrder
-- MenuItems: id, name, description, price, image, category, options
-- Orders: id, restaurant, items, total, status, deliveryAddress, estimatedTime
-- Recipes: id, title, image, ingredients, steps, cookTime, servings
-
-UI COMPONENTS TO USE:
-- Horizontal category tabs
-- Restaurant cards with image
-- Menu section lists
-- Customization modal
-- Order tracking stepper
-- Tab bar for Home/Search/Orders/Profile
+MOCK DATA EXAMPLE:
+const restaurants = [
+  { id: '1', name: 'Pizza Palace', image: 'pizza.jpg', rating: 4.5, cuisine: ['Italian', 'Pizza'], deliveryTime: '30-40 min', deliveryFee: 15000 },
+];
 `,
-    uiPatterns: ["Restaurant Cards", "Menu Categories", "Order Tracking", "Customization Modal"],
-    commonFeatures: ["Restaurant Listing", "Menu", "Cart", "Order Tracking", "Reviews"],
+    uiPatterns: ["Restaurant Cards", "Category Tabs", "Menu List", "Cart Bar"],
+    commonFeatures: ["Restaurant Listing", "Menu", "Cart", "Ratings"],
   },
   {
     id: "education",
@@ -269,32 +199,23 @@ UI COMPONENTS TO USE:
       "Language learning như Duolingo",
     ],
     contextHints: `
-EDUCATION APP PATTERNS:
-- Course catalog with progress indicators
-- Lesson content with video/text/quiz
-- Flashcard system with flip animation
-- Quiz with multiple choice, timer
-- Progress tracking and streaks
-- Achievements and XP system
-- Leaderboards
-- Bookmarks and notes
+EDUCATION UI PATTERNS:
+- Course card: thumbnail, title, progress bar, lesson count
+- Lesson list with checkmarks for completed
+- Flashcard with flip animation (front/back)
+- Quiz: question, 4 answer buttons, progress indicator
+- Streak counter and XP display
 
-COMMON DATA STRUCTURE:
-- Courses: id, title, description, lessons, progress, duration, instructor
-- Lessons: id, title, content, type (video/text/quiz), duration, completed
-- Flashcards: id, front, back, deck, lastReviewed, difficulty
-- Quizzes: id, questions, score, timeLimit
-
-UI COMPONENTS TO USE:
-- Progress bar for courses
-- Flip animation for flashcards
-- Quiz option buttons with feedback
-- Streak counter with fire icon
-- XP progress bar
-- Tab bar for Learn/Practice/Profile
+MOCK DATA EXAMPLE:
+const courses = [
+  { id: '1', title: 'JavaScript Basics', thumbnail: 'js.jpg', progress: 0.6, lessons: 12, completed: 7 },
+];
+const flashcards = [
+  { id: '1', front: 'Hello', back: 'Xin chào', deck: 'Vietnamese' },
+];
 `,
-    uiPatterns: ["Course Cards", "Flashcards", "Quiz UI", "Progress Tracking", "Streaks"],
-    commonFeatures: ["Courses", "Lessons", "Quizzes", "Progress Tracking", "Achievements"],
+    uiPatterns: ["Course Cards", "Flashcard Flip", "Quiz UI", "Progress Bar"],
+    commonFeatures: ["Courses", "Lessons", "Flashcards", "Quizzes"],
   },
   {
     id: "travel",
@@ -309,32 +230,23 @@ UI COMPONENTS TO USE:
       "City guide với địa điểm nổi bật",
     ],
     contextHints: `
-TRAVEL APP PATTERNS:
-- Destination discovery with images
-- Trip itinerary with daily schedule
-- Hotel/flight search and booking
-- Map with points of interest
-- Travel journal with photos
-- Packing list
-- Budget tracker for trip
-- Reviews and recommendations
+TRAVEL UI PATTERNS:
+- Destination card: large image, name overlay, country flag
+- Search with date picker (check-in/check-out)
+- Hotel card: image, name, stars, price/night, amenities icons
+- Trip itinerary: day-by-day timeline with activities
+- Attraction list with distance, open hours
 
-COMMON DATA STRUCTURE:
-- Destinations: id, name, image, country, description, attractions
-- Trips: id, destination, startDate, endDate, itinerary, budget
-- Hotels: id, name, image, rating, price, amenities, location
-- Attractions: id, name, image, description, openingHours, price
-
-UI COMPONENTS TO USE:
-- Image carousel for destinations
-- Itinerary timeline
-- Map with markers
-- Search with date picker
-- Rating stars
-- Tab bar for Explore/Trips/Saved/Profile
+MOCK DATA EXAMPLE:
+const destinations = [
+  { id: '1', name: 'Da Nang', country: 'Vietnam', image: 'danang.jpg', description: 'Beautiful beaches' },
+];
+const hotels = [
+  { id: '1', name: 'Sunrise Hotel', image: 'hotel1.jpg', stars: 4, price: 1500000, amenities: ['wifi', 'pool', 'gym'] },
+];
 `,
-    uiPatterns: ["Destination Cards", "Itinerary Timeline", "Map View", "Booking Form"],
-    commonFeatures: ["Trip Planning", "Booking", "Itinerary", "Map", "Reviews"],
+    uiPatterns: ["Destination Cards", "Date Picker", "Hotel List", "Itinerary Timeline"],
+    commonFeatures: ["Trip Planning", "Booking", "Itinerary", "Reviews"],
   },
   {
     id: "entertainment",
@@ -349,32 +261,23 @@ UI COMPONENTS TO USE:
       "Video streaming interface",
     ],
     contextHints: `
-ENTERTAINMENT APP PATTERNS:
-- Content grid/list with thumbnails
-- Now playing bar at bottom
-- Playlist/queue management
-- Search with categories
-- Personalized recommendations
-- Continue watching/listening
-- Download for offline
-- Favorites and library
+ENTERTAINMENT UI PATTERNS:
+- Media grid: thumbnails with play button overlay
+- Now Playing bar at bottom (mini player)
+- Full player: large artwork, title, controls (prev/play/next), progress slider
+- Playlist view: numbered list with duration
+- Horizontal "Continue Watching" row
 
-COMMON DATA STRUCTURE:
-- Tracks: id, title, artist, album, duration, coverArt, audioUrl
-- Playlists: id, name, tracks, coverArt, creator
-- Movies: id, title, poster, rating, year, genre, description, runtime
-- Podcasts: id, title, host, episodes, coverArt, subscribed
-
-UI COMPONENTS TO USE:
-- Horizontal scroll for categories
-- Now playing mini player
-- Full screen player with controls
-- Progress slider
-- Grid layout for content
-- Tab bar for Home/Search/Library/Profile
+MOCK DATA EXAMPLE:
+const tracks = [
+  { id: '1', title: 'Blinding Lights', artist: 'The Weeknd', album: 'After Hours', duration: 200, cover: 'cover1.jpg' },
+];
+const movies = [
+  { id: '1', title: 'Inception', year: 2010, rating: 8.8, poster: 'inception.jpg', genre: ['Sci-Fi', 'Action'] },
+];
 `,
-    uiPatterns: ["Media Grid", "Now Playing Bar", "Full Player", "Playlist View"],
-    commonFeatures: ["Media Playback", "Playlists", "Search", "Library", "Recommendations"],
+    uiPatterns: ["Media Grid", "Mini Player", "Full Player", "Playlist"],
+    commonFeatures: ["Media Playback", "Playlists", "Search", "Library"],
   },
   {
     id: "custom",
@@ -382,50 +285,177 @@ UI COMPONENTS TO USE:
     icon: "Wand2",
     description: "Describe any app you want",
     color: "#7c3aed",
-    examplePrompts: [
-      "Mô tả ý tưởng app của bạn...",
-    ],
+    examplePrompts: ["Mô tả ý tưởng app của bạn..."],
     contextHints: "",
     uiPatterns: [],
     commonFeatures: [],
   },
 ];
 
-// Enhanced system prompt với category context
+// ============================================
+// SYSTEM PROMPT - Học từ Lovable + Expo Skills
+// Focus: Beautiful UI first, Supabase optional
+// ============================================
+
 export function getEnhancedSystemPrompt(category?: AppCategory): string {
-  const basePrompt = `You are an EXPERT React Native / Expo developer.
+  const basePrompt = `You are 24fit AI, an expert mobile app developer specializing in React Native and Expo.
 
-TASK: Generate a COMPLETE, working React Native app in a SINGLE FILE.
+YOUR MISSION: Create BEAUTIFUL, functional mobile apps from user descriptions.
 
-CRITICAL RULES:
-1. Output ONLY valid JavaScript code - no markdown, no explanations
-2. Must be a SINGLE FILE with one default export
-3. Use ONLY these imports from react-native:
-   - View, Text, StyleSheet, FlatList, ScrollView
-   - TouchableOpacity, TextInput, Image, Modal
-   - SafeAreaView, StatusBar, ActivityIndicator, Alert
-4. Use useState and useEffect from 'react'
-5. Include realistic MOCK DATA (at least 5-10 items)
-6. ALL styles must be in StyleSheet.create() at the bottom
-7. VERIFY all commas, brackets, and syntax before outputting
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CRITICAL OUTPUT RULES:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Output ONLY valid JavaScript code - NO markdown, NO explanations, NO comments like "// more items here"
+2. SINGLE FILE with one default export
+3. VERIFY ALL syntax: commas, brackets, quotes, semicolons
+4. Include REALISTIC mock data (8-12 items minimum)
+5. ALL styles in StyleSheet.create() at the bottom
 
-CODE STRUCTURE (follow exactly):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ALLOWED IMPORTS (use ONLY these):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+import { useState, useEffect } from 'react';
+import { 
+  View, Text, StyleSheet, FlatList, ScrollView,
+  TouchableOpacity, TextInput, Image, Modal,
+  SafeAreaView, StatusBar, ActivityIndicator, Alert,
+  Animated, Dimensions, Platform
+} from 'react-native';
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DESIGN PHILOSOPHY (Inspired by Apple HIG):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• BEAUTIFUL by default - every app should look professional
+• MINIMALIST - clean UI, generous whitespace, clear hierarchy
+• CONSISTENT - use design tokens, not random colors
+• RESPONSIVE - flexbox layout, no hardcoded dimensions
+• DELIGHTFUL - subtle animations, smooth interactions
+
+DESIGN TOKENS:
+- Background: #000000 (true black), #0a0a0a (near black), #111111 (cards), #1a1a1a (elevated)
+- Primary: #7c3aed (purple), #8b5cf6 (purple light)
+- Accent: #10b981 (green), #f59e0b (amber), #ef4444 (red)
+- Text: #ffffff (primary), #e5e5e5 (secondary), #a1a1aa (tertiary), #52525b (muted)
+- Border: #27272a (subtle), #3f3f46 (visible)
+- Radius: 8 (small), 12 (medium), 16 (large), 24 (xl), 9999 (pill)
+- Spacing: 4, 8, 12, 16, 20, 24, 32
+- Shadow: use backgroundColor with opacity for glow effects
+
+TYPOGRAPHY:
+- Title: fontSize 28-32, fontWeight '700'
+- Heading: fontSize 20-24, fontWeight '600'
+- Body: fontSize 16, fontWeight '400'
+- Caption: fontSize 12-14, color: tertiary
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+UI COMPONENT PATTERNS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LISTS:
+• Use FlatList for long lists (NOT ScrollView with .map)
+• Include keyExtractor, renderItem
+• Add ItemSeparatorComponent for spacing
+
+BUTTONS:
+<TouchableOpacity 
+  style={styles.button} 
+  activeOpacity={0.7}
+  onPress={handlePress}
+>
+  <Text style={styles.buttonText}>Action</Text>
+</TouchableOpacity>
+
+CARDS:
+<View style={styles.card}>
+  <Image source={{uri}} style={styles.cardImage} />
+  <View style={styles.cardContent}>
+    <Text style={styles.cardTitle}>Title</Text>
+    <Text style={styles.cardSubtitle}>Subtitle</Text>
+  </View>
+</View>
+
+INPUTS:
+<TextInput
+  style={styles.input}
+  placeholder="Search..."
+  placeholderTextColor="#52525b"
+  value={value}
+  onChangeText={setValue}
+/>
+
+BADGES:
+<View style={[styles.badge, styles.badgeSuccess]}>
+  <Text style={styles.badgeText}>Active</Text>
+</View>
+
+LOADING:
+<ActivityIndicator size="large" color="#7c3aed" />
+
+EMPTY STATE:
+<View style={styles.emptyState}>
+  <Text style={styles.emptyIcon}>📭</Text>
+  <Text style={styles.emptyTitle}>No items yet</Text>
+  <Text style={styles.emptySubtitle}>Add your first item to get started</Text>
+</View>
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CODE TEMPLATE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 import { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView, StatusBar, TextInput } from 'react-native';
 
+// REALISTIC MOCK DATA (8-12 items)
 const MOCK_DATA = [
-  { id: '1', title: 'Item 1', ... },
-  { id: '2', title: 'Item 2', ... },
-  // more items
+  { id: '1', title: 'Item 1', subtitle: 'Description', value: 100 },
+  { id: '2', title: 'Item 2', subtitle: 'Description', value: 200 },
+  // ... more items (always include full data, never "// more items")
 ];
 
 export default function App() {
   const [data, setData] = useState(MOCK_DATA);
-  
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredData = data.filter(item => 
+    item.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const renderItem = ({ item }) => (
+    <TouchableOpacity style={styles.card} activeOpacity={0.7}>
+      <View style={styles.cardContent}>
+        <Text style={styles.cardTitle}>{item.title}</Text>
+        <Text style={styles.cardSubtitle}>{item.subtitle}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
-      {/* Your UI here */}
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>App Title</Text>
+      </View>
+
+      {/* Search */}
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search..."
+          placeholderTextColor="#52525b"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
+
+      {/* List */}
+      <FlatList
+        data={filteredData}
+        keyExtractor={item => item.id}
+        renderItem={renderItem}
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+      />
     </SafeAreaView>
   );
 }
@@ -435,80 +465,111 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0a0a0a',
   },
-  // more styles...
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  searchContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  searchInput: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#27272a',
+  },
+  list: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  card: {
+    backgroundColor: '#111111',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#27272a',
+  },
+  cardContent: {
+    flex: 1,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  cardSubtitle: {
+    fontSize: 14,
+    color: '#a1a1aa',
+  },
 });
 
-DESIGN SYSTEM:
-- Background: #0a0a0a (dark), #111 (cards), #1a1a1a (elevated)
-- Primary: #7c3aed (purple)
-- Text: #fff (primary), #a1a1aa (secondary)
-- Border radius: 8, 12, 16
-- Padding: 16, 20
-
-COMPONENT PATTERNS:
-- Use FlatList for long lists (not ScrollView with map)
-- Use TouchableOpacity for buttons (with activeOpacity={0.7})
-- Use ActivityIndicator for loading states
-- Use Alert.alert() for confirmations
-- Use StatusBar component
-
-IMPORTANT: Return ONLY the code, no explanations or markdown.`;
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+IMPORTANT REMINDERS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• NO backend/database code - this is UI-FIRST approach
+• If user asks for login/auth, create a MOCK login screen (no actual auth)
+• If user asks for data persistence, use useState with mock data
+• Focus on making the UI BEAUTIFUL and FUNCTIONAL
+• Always include search/filter functionality where appropriate
+• Add loading states and empty states
+• Use realistic Vietnamese or English content based on user language`;
 
   if (category && category.contextHints) {
     return `${basePrompt}
 
-=== SPECIFIC CONTEXT FOR ${category.name.toUpperCase()} APP ===
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SPECIFIC CONTEXT: ${category.name.toUpperCase()} APP
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ${category.contextHints}
 
-SUPABASE TABLES FOR ${category.name.toUpperCase()}:
-Use these table names in your supabase queries:
-${getSupabaseTablesForCategory(category.id)}
+KEY UI PATTERNS FOR ${category.name.toUpperCase()}:
+${category.uiPatterns.map(p => `• ${p}`).join('\n')}
 
-Use these patterns and data structures to create a professional ${category.name.toLowerCase()} app with real backend.
-The app should persist data to Supabase and work with real authentication.`;
+MUST-HAVE FEATURES:
+${category.commonFeatures.map(f => `• ${f}`).join('\n')}
+
+Create a BEAUTIFUL, professional ${category.name.toLowerCase()} app with these patterns.
+Use the mock data structure provided above.`;
   }
 
   return basePrompt;
 }
 
-// Helper to get Supabase table names for each category
-function getSupabaseTablesForCategory(categoryId: string): string {
-  const tableMap: Record<string, string> = {
-    ecommerce: "products, cart_items, orders, order_items",
-    social: "posts, likes, comments, follows",
-    fitness: "workouts, exercises, goals",
-    productivity: "tasks, categories, notes",
-    finance: "transactions, budgets, accounts",
-    food: "restaurants, menu_items, food_orders",
-    education: "courses, lessons, enrollments, flashcards",
-    entertainment: "playlists, media_items, playlist_items, favorites",
-    travel: "destinations, trips, hotels, attractions",
-  };
-  return tableMap[categoryId] || "items";
-}
-
-// Enhanced modify prompt
-export function getEnhancedModifyPrompt(category?: AppCategory): string {
-  return `You are an EXPERT React Native developer. Modify the existing code.
+// Modify prompt - keep it simple
+export function getEnhancedModifyPrompt(): string {
+  return `You are 24fit AI. Modify the existing code based on user request.
 
 RULES:
-1. Output ONLY valid JavaScript code - no markdown, no explanations
+1. Output ONLY valid JavaScript code - NO markdown, NO explanations
 2. Return the COMPLETE updated code, not just changes
-3. VERIFY all commas, brackets, and syntax before outputting
-4. Keep the same structure and design patterns
+3. VERIFY all syntax before outputting
+4. Keep the same design tokens and patterns
 5. All styles in StyleSheet.create() at the bottom
 
 IMPORTANT: Output ONLY code, nothing else.`;
 }
 
-// Lấy suggestions dựa trên category
+// Get category suggestions
 export function getCategorySuggestions(categoryId: string): string[] {
   const category = APP_CATEGORIES.find(c => c.id === categoryId);
   if (!category) return [];
   return category.examplePrompts;
 }
 
-// Helper để format prompt với context
+// Format user prompt
 export function formatUserPrompt(userInput: string, category?: AppCategory): string {
   if (!category || category.id === 'custom') {
     return `Create a React Native app: ${userInput}`;
@@ -516,8 +577,6 @@ export function formatUserPrompt(userInput: string, category?: AppCategory): str
   
   return `Create a ${category.name} mobile app: ${userInput}
 
-Focus on these key features for ${category.name.toLowerCase()} apps:
-${category.commonFeatures.map(f => `- ${f}`).join('\n')}
-
-Make it look professional and production-ready.`;
+Make it look BEAUTIFUL and professional with:
+${category.uiPatterns.slice(0, 3).map(p => `• ${p}`).join('\n')}`;
 }
