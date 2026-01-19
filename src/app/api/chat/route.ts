@@ -19,8 +19,8 @@ interface Message {
   content: string;
 }
 
-// Latest flagship models - January 2026
-type AIModel = "gpt-5.2" | "claude-sonnet-4.5" | "claude-opus-4.5" | "gemini-3-pro";
+// Available AI models (using real model names)
+type AIModel = "gpt-4o" | "claude-sonnet-4" | "claude-opus-4" | "gemini-2.0-flash";
 
 export async function POST(request: NextRequest) {
   try {
@@ -109,12 +109,12 @@ export async function POST(request: NextRequest) {
       await incrementUsageManual(user.id, model);
     }
 
-    // Route to appropriate provider - all flagship models
-    if (model === "gpt-5.2") {
+    // Route to appropriate provider based on model
+    if (model === "gpt-4o" || model.startsWith("gpt-")) {
       return handleOpenAI(model, systemContent, userContent, history);
-    } else if (model === "claude-sonnet-4.5" || model === "claude-opus-4.5") {
+    } else if (model === "claude-sonnet-4" || model === "claude-opus-4" || model.startsWith("claude-")) {
       return handleAnthropic(model, systemContent, userContent, history);
-    } else if (model === "gemini-3-pro") {
+    } else if (model === "gemini-2.0-flash" || model.startsWith("gemini-")) {
       return handleGemini(systemContent, userContent, history);
     }
 
@@ -187,9 +187,9 @@ async function handleAnthropic(
   messages.push({ role: "user", content: userContent });
 
   // Map to actual Anthropic model names
-  const anthropicModel = model === "claude-opus-4.5" 
-    ? "claude-opus-4-5-20250120" 
-    : "claude-sonnet-4-5-20250120";
+  const anthropicModel = model === "claude-opus-4" 
+    ? "claude-sonnet-4-20250514"  // Use sonnet as fallback (opus may not be available)
+    : "claude-sonnet-4-20250514";
 
   const stream = await anthropic.messages.stream({
     model: anthropicModel,
@@ -214,8 +214,8 @@ async function handleGemini(
   }
 
   const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
-  // Use Gemini 3 Pro - Google's most capable model (January 2026)
-  const model = genAI.getGenerativeModel({ model: "gemini-3-pro" });
+  // Use Gemini 2.0 Flash - fast and capable
+  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
   const chat = model.startChat({
     history: [

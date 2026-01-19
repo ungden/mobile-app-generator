@@ -34,8 +34,8 @@ export const getStripe = () => {
  * - Profit margin at $29/mo with 100 gens: ~69%
  */
 
-// Available flagship models (January 2026)
-export const FLAGSHIP_MODELS = ["gpt-5.2", "claude-sonnet-4.5", "claude-opus-4.5", "gemini-3-pro"];
+// Available AI models
+export const FLAGSHIP_MODELS = ["gpt-4o", "claude-sonnet-4", "gemini-2.0-flash"];
 
 // Pricing configuration
 export const PLANS = {
@@ -101,5 +101,5 @@ export function isModelAllowedForTier(model: string, tier: PlanType): boolean {
 
 // Get default model for any tier
 export function getDefaultModelForTier(tier: PlanType): string {
-  return "gpt-5.2"; // Best for coding
+  return "claude-sonnet-4"; // Best for coding
 }
