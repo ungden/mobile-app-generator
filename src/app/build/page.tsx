@@ -3,13 +3,13 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import Logo from "@/components/Logo";
 import ChatPanel from "@/components/ChatPanel";
 import CodePreview from "@/components/CodePreview";
 import { defaultAppCode } from "@/lib/templates";
 import { downloadAsFile, downloadAsExpoProject } from "@/lib/export";
 import { useToast } from "@/components/Toast";
 import {
-  Sparkles,
   ArrowLeft,
   Download,
   ChevronDown,
@@ -140,10 +140,8 @@ function BuildContent() {
             <span className="hidden sm:inline text-sm">Back</span>
           </Link>
 
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
+          <div className="flex items-center gap-3">
+            <Logo size="sm" showText={false} />
             <input
               type="text"
               value={projectName}

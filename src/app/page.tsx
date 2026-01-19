@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Logo from "@/components/Logo";
 import {
-  Sparkles,
   ArrowRight,
   Zap,
   Smartphone,
@@ -148,12 +148,7 @@ export default function LandingPage() {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0a]/80 backdrop-blur-lg border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold">AppForge</span>
-            </div>
+            <Logo size="md" />
 
             <div className="hidden md:flex items-center gap-8">
               <a href="#features" className="text-gray-400 hover:text-white transition-colors">
@@ -190,20 +185,20 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 rounded-full px-4 py-1.5 mb-8">
             <Star className="w-4 h-4 text-purple-400" />
-            <span className="text-sm text-purple-300">Now with GPT-5.2 & Claude Opus 4.5</span>
+            <span className="text-sm text-purple-300">Powered by GPT-5.2 & Claude Opus 4.5</span>
           </div>
 
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
-            Build mobile apps
+            Build full-stack apps
             <br />
-            <span className="bg-gradient-to-r from-purple-400 via-pink-500 to-purple-600 bg-clip-text text-transparent">
-              with AI, fast.
+            <span className="bg-gradient-to-r from-purple-400 via-pink-500 to-orange-400 bg-clip-text text-transparent">
+              in 24 seconds.
             </span>
           </h1>
 
           <p className="text-xl text-gray-400 max-w-2xl mx-auto mb-10">
-            Describe your app idea and watch it come to life. AppForge generates
-            complete, cross-platform mobile apps using AI and Expo (React Native).
+            Describe your app idea and watch it come to life. 24fit generates
+            complete mobile apps with backend, auth, and database - all powered by AI.
           </p>
 
           {/* Main Input */}
@@ -455,14 +450,9 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="py-12 px-4 border-t border-white/5">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-gradient-to-br from-purple-500 to-pink-500 rounded-md flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-semibold">AppForge</span>
-          </div>
+          <Logo size="sm" />
           <p className="text-sm text-gray-500">
-            2026 AppForge. Built with Next.js, Expo, and AI.
+            2026 24fit. Built with Next.js, Expo, Supabase & AI.
           </p>
         </div>
       </footer>

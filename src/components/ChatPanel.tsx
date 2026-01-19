@@ -47,7 +47,7 @@ export default function ChatPanel({
       id: "1",
       role: "assistant",
       content:
-        "Hi! I'm AppForge AI. Choose an app category above for smarter suggestions, then describe your app idea. I'll create a polished MVP for you!",
+        "Hi! I'm 24fit AI. Choose an app category above, then describe your app. I'll generate a complete full-stack app with UI, backend, and database!",
     },
   ]);
   const [input, setInput] = useState("");
@@ -254,7 +254,7 @@ export default function ChatPanel({
         id: "1",
         role: "assistant",
         content:
-          "Hi! I'm AppForge AI. Choose an app category above for smarter suggestions, then describe your app idea. I'll create a polished MVP for you!",
+          "Hi! I'm 24fit AI. Choose an app category above, then describe your app. I'll generate a complete full-stack app with UI, backend, and database!",
       },
     ]);
     setCurrentCode("");

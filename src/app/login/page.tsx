@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import { Sparkles, Github, Mail, Loader2, ArrowLeft } from "lucide-react";
+import Logo from "@/components/Logo";
+import { Github, Mail, Loader2, ArrowLeft } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -77,11 +78,8 @@ export default function LoginPage() {
         </Link>
 
         {/* Logo */}
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-            <Sparkles className="w-6 h-6 text-white" />
-          </div>
-          <span className="text-2xl font-bold">AppForge</span>
+        <div className="mb-8">
+          <Logo size="lg" />
         </div>
 
         {/* Card */}

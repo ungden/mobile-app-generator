@@ -391,72 +391,108 @@ UI COMPONENTS TO USE:
   },
 ];
 
-// Enhanced system prompt với category context
+// Enhanced system prompt với category context + Supabase
 export function getEnhancedSystemPrompt(category?: AppCategory): string {
-  const basePrompt = `You are an EXPERT React Native / Expo developer who creates PRODUCTION-QUALITY mobile apps.
+  const basePrompt = `You are an EXPERT React Native / Expo developer who creates PRODUCTION-QUALITY full-stack mobile apps with Supabase backend.
 
-YOUR MISSION: Generate a complete, polished MVP app that looks and works like a real app from the App Store.
+YOUR MISSION: Generate a complete, polished MVP app with real backend functionality using Supabase.
 
 CRITICAL RULES:
-1. Generate COMPLETE, PRODUCTION-READY code - never use placeholders like "// add more here" or "..."
-2. Include REALISTIC mock data (at least 5-10 items for lists)
+1. Generate COMPLETE, PRODUCTION-READY code - never use placeholders
+2. Include Supabase integration for data persistence and auth
 3. Make the UI VISUALLY STUNNING with modern design patterns
-4. Add SMOOTH interactions and state management
+4. Add SMOOTH interactions and proper loading/error states
 5. Code must be a SINGLE FILE with default export
+
+SUPABASE INTEGRATION (IMPORTANT):
+- Use the pre-configured supabase client from the app
+- For auth: supabase.auth.signInWithPassword(), signUp(), signOut(), getUser()
+- For data: supabase.from('table').select(), insert(), update(), delete()
+- For realtime: supabase.channel('channel').on('postgres_changes', ...).subscribe()
+- Always handle loading and error states for async operations
+- Use useEffect to fetch data on mount
+
+SUPABASE CODE PATTERN:
+\`\`\`javascript
+import { useState, useEffect } from 'react';
+import { supabase } from './lib/supabase'; // Pre-configured client
+
+export default function App() {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    // Check auth state
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+    });
+
+    // Subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [user]);
+
+  async function fetchData() {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('items')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setData(data || []);
+    } catch (error) {
+      console.error('Error:', error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function addItem(item) {
+    const { data: newItem, error } = await supabase
+      .from('items')
+      .insert([{ ...item, user_id: user?.id }])
+      .select()
+      .single();
+    
+    if (!error) setData([newItem, ...data]);
+  }
+
+  // ... rest of component
+}
+\`\`\`
 
 DESIGN SYSTEM:
 - Background: #0a0a0a (dark), #111111 (cards), #1a1a1a (elevated)
 - Primary: #7c3aed (purple), #8b5cf6 (light purple)
+- Accent: #f97316 (orange), #ec4899 (pink)
 - Text: #ffffff (primary), #a1a1aa (secondary), #71717a (muted)
 - Success: #10b981, Error: #ef4444, Warning: #f59e0b
 - Border radius: 8px (small), 12px (medium), 16px (large), 9999px (full)
-- Spacing: 4, 8, 12, 16, 20, 24, 32
 
 MUST INCLUDE:
-- Safe area handling (paddingTop for status bar)
-- Proper typography hierarchy (sizes: 12, 14, 16, 18, 24, 32)
-- Touch feedback on all interactive elements
-- Loading states where appropriate
+- Loading spinners/skeletons when fetching data
+- Error handling with user-friendly messages
+- Pull to refresh for lists
+- Optimistic updates where appropriate
+- Auth state checks (show login prompt if not authenticated)
 - Empty states for lists
-- Proper shadows for depth (iOS: shadow*, Android: elevation)
 
 COMPONENT PATTERNS:
 - Use FlatList for long lists (not ScrollView with map)
 - Use TouchableOpacity for buttons (with activeOpacity={0.7})
-- Use TextInput with proper styling for forms
-- Use Modal for overlays
-- Use StatusBar component to control status bar style
-
-CODE STRUCTURE:
-\`\`\`javascript
-import { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ... } from 'react-native';
-
-// Mock data at the top
-const MOCK_DATA = [...];
-
-export default function App() {
-  const [state, setState] = useState(...);
-  
-  // Helper functions
-  
-  // Render functions for complex UI
-  
-  return (
-    <View style={styles.container}>
-      {/* Main UI */}
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0a0a0a',
-  },
-  // ... comprehensive styles
-});
-\`\`\`
+- Use ActivityIndicator for loading states
+- Use Alert.alert() for confirmations
+- Use StatusBar component
 
 IMPORTANT: Return ONLY the code, no explanations or markdown.`;
 
@@ -466,11 +502,31 @@ IMPORTANT: Return ONLY the code, no explanations or markdown.`;
 === SPECIFIC CONTEXT FOR ${category.name.toUpperCase()} APP ===
 ${category.contextHints}
 
-Use these patterns and data structures as a reference to create a professional ${category.name.toLowerCase()} app.
-The app should feel complete and usable, not like a demo or prototype.`;
+SUPABASE TABLES FOR ${category.name.toUpperCase()}:
+Use these table names in your supabase queries:
+${getSupabaseTablesForCategory(category.id)}
+
+Use these patterns and data structures to create a professional ${category.name.toLowerCase()} app with real backend.
+The app should persist data to Supabase and work with real authentication.`;
   }
 
   return basePrompt;
+}
+
+// Helper to get Supabase table names for each category
+function getSupabaseTablesForCategory(categoryId: string): string {
+  const tableMap: Record<string, string> = {
+    ecommerce: "products, cart_items, orders, order_items",
+    social: "posts, likes, comments, follows",
+    fitness: "workouts, exercises, goals",
+    productivity: "tasks, categories, notes",
+    finance: "transactions, budgets, accounts",
+    food: "restaurants, menu_items, food_orders",
+    education: "courses, lessons, enrollments, flashcards",
+    entertainment: "playlists, media_items, playlist_items, favorites",
+    travel: "destinations, trips, hotels, attractions",
+  };
+  return tableMap[categoryId] || "items";
 }
 
 // Enhanced modify prompt

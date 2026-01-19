@@ -14,8 +14,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AppForge AI - Create Mobile Apps with AI",
-  description: "Build React Native mobile apps in minutes using AI. No coding required.",
+  title: "24fit - Build Full-Stack Apps in 24 Seconds with AI",
+  description: "Generate complete mobile apps with UI, backend, auth, and database using AI. Powered by GPT-5.2, Claude 4.5, and Supabase.",
+  keywords: ["AI app builder", "mobile app generator", "React Native", "Supabase", "no-code"],
+  authors: [{ name: "24fit" }],
+  openGraph: {
+    title: "24fit - Build Full-Stack Apps in 24 Seconds",
+    description: "Generate complete mobile apps with UI, backend, auth, and database using AI.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
