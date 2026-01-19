@@ -17,15 +17,15 @@ interface Message {
 
 // Available AI models
 type AIModel = 
-  | "gpt-4o" 
-  | "claude-sonnet-4"
-  | "claude-opus-4" 
-  | "gemini-pro" 
-  | "gemini-flash";
+  | "gpt-5.2" 
+  | "claude-sonnet-4.5"
+  | "claude-opus-4.5" 
+  | "gemini-3-pro" 
+  | "gemini-3-flash";
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, model = "claude-sonnet-4", history = [], currentCode = "", categoryId = "" } = await request.json();
+    const { prompt, model = "claude-sonnet-4.5", history = [], currentCode = "", categoryId = "" } = await request.json();
 
     if (!prompt) {
       return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
@@ -46,11 +46,11 @@ export async function POST(request: NextRequest) {
       : prompt;
 
     // Route to appropriate provider based on model
-    if (model === "gpt-4o" || model.startsWith("gpt-")) {
+    if (model === "gpt-5.2" || model.startsWith("gpt-")) {
       return handleOpenAI(systemContent, userContent, history);
     } else if (model.startsWith("claude-")) {
       return handleAnthropic(model, systemContent, userContent, history);
-    } else if (model.startsWith("gemini")) {
+    } else if (model.startsWith("gemini-")) {
       return handleGemini(model, systemContent, userContent, history);
     }
 
@@ -89,7 +89,7 @@ async function handleOpenAI(
   messages.push({ role: "user", content: userContent });
 
   const stream = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-5.2",
     messages,
     temperature: 0.7,
     max_tokens: 8000,
@@ -122,9 +122,9 @@ async function handleAnthropic(
   messages.push({ role: "user", content: userContent });
 
   // Map to actual Anthropic model names
-  const anthropicModel = model === "claude-opus-4" 
-    ? "claude-sonnet-4-20250514"
-    : "claude-sonnet-4-20250514";
+  const anthropicModel = model === "claude-opus-4.5" 
+    ? "claude-opus-4-5-20251101"
+    : "claude-sonnet-4-5-20250929";
 
   const stream = await anthropic.messages.stream({
     model: anthropicModel,
@@ -152,9 +152,9 @@ async function handleGemini(
   const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
   
   // Map to actual Gemini model names
-  const geminiModel = modelId === "gemini-flash" 
-    ? "gemini-2.0-flash-exp"
-    : "gemini-1.5-pro";
+  const geminiModel = modelId === "gemini-3-flash" 
+    ? "gemini-3-flash-preview"
+    : "gemini-3-pro-preview";
     
   const model = genAI.getGenerativeModel({ model: geminiModel });
 
