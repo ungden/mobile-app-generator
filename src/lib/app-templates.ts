@@ -391,101 +391,59 @@ UI COMPONENTS TO USE:
   },
 ];
 
-// Enhanced system prompt với category context + Supabase
+// Enhanced system prompt với category context
 export function getEnhancedSystemPrompt(category?: AppCategory): string {
-  const basePrompt = `You are an EXPERT React Native / Expo developer who creates PRODUCTION-QUALITY full-stack mobile apps with Supabase backend.
+  const basePrompt = `You are an EXPERT React Native / Expo developer.
 
-YOUR MISSION: Generate a complete, polished MVP app with real backend functionality using Supabase.
+TASK: Generate a COMPLETE, working React Native app in a SINGLE FILE.
 
 CRITICAL RULES:
-1. Generate COMPLETE, PRODUCTION-READY code - never use placeholders
-2. Include Supabase integration for data persistence and auth
-3. Make the UI VISUALLY STUNNING with modern design patterns
-4. Add SMOOTH interactions and proper loading/error states
-5. Code must be a SINGLE FILE with default export
+1. Output ONLY valid JavaScript code - no markdown, no explanations
+2. Must be a SINGLE FILE with one default export
+3. Use ONLY these imports from react-native:
+   - View, Text, StyleSheet, FlatList, ScrollView
+   - TouchableOpacity, TextInput, Image, Modal
+   - SafeAreaView, StatusBar, ActivityIndicator, Alert
+4. Use useState and useEffect from 'react'
+5. Include realistic MOCK DATA (at least 5-10 items)
+6. ALL styles must be in StyleSheet.create() at the bottom
+7. VERIFY all commas, brackets, and syntax before outputting
 
-SUPABASE INTEGRATION (IMPORTANT):
-- Use the pre-configured supabase client from the app
-- For auth: supabase.auth.signInWithPassword(), signUp(), signOut(), getUser()
-- For data: supabase.from('table').select(), insert(), update(), delete()
-- For realtime: supabase.channel('channel').on('postgres_changes', ...).subscribe()
-- Always handle loading and error states for async operations
-- Use useEffect to fetch data on mount
+CODE STRUCTURE (follow exactly):
+import { useState } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView, StatusBar } from 'react-native';
 
-SUPABASE CODE PATTERN:
-\`\`\`javascript
-import { useState, useEffect } from 'react';
-import { supabase } from './lib/supabase'; // Pre-configured client
+const MOCK_DATA = [
+  { id: '1', title: 'Item 1', ... },
+  { id: '2', title: 'Item 2', ... },
+  // more items
+];
 
 export default function App() {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    // Check auth state
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user);
-    });
-
-    // Subscribe to auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [user]);
-
-  async function fetchData() {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('items')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      setData(data || []);
-    } catch (error) {
-      console.error('Error:', error.message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function addItem(item) {
-    const { data: newItem, error } = await supabase
-      .from('items')
-      .insert([{ ...item, user_id: user?.id }])
-      .select()
-      .single();
-    
-    if (!error) setData([newItem, ...data]);
-  }
-
-  // ... rest of component
+  const [data, setData] = useState(MOCK_DATA);
+  
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" />
+      {/* Your UI here */}
+    </SafeAreaView>
+  );
 }
-\`\`\`
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0a0a0a',
+  },
+  // more styles...
+});
 
 DESIGN SYSTEM:
-- Background: #0a0a0a (dark), #111111 (cards), #1a1a1a (elevated)
-- Primary: #7c3aed (purple), #8b5cf6 (light purple)
-- Accent: #f97316 (orange), #ec4899 (pink)
-- Text: #ffffff (primary), #a1a1aa (secondary), #71717a (muted)
-- Success: #10b981, Error: #ef4444, Warning: #f59e0b
-- Border radius: 8px (small), 12px (medium), 16px (large), 9999px (full)
-
-MUST INCLUDE:
-- Loading spinners/skeletons when fetching data
-- Error handling with user-friendly messages
-- Pull to refresh for lists
-- Optimistic updates where appropriate
-- Auth state checks (show login prompt if not authenticated)
-- Empty states for lists
+- Background: #0a0a0a (dark), #111 (cards), #1a1a1a (elevated)
+- Primary: #7c3aed (purple)
+- Text: #fff (primary), #a1a1aa (secondary)
+- Border radius: 8, 12, 16
+- Padding: 16, 20
 
 COMPONENT PATTERNS:
 - Use FlatList for long lists (not ScrollView with map)
@@ -531,20 +489,16 @@ function getSupabaseTablesForCategory(categoryId: string): string {
 
 // Enhanced modify prompt
 export function getEnhancedModifyPrompt(category?: AppCategory): string {
-  return `You are an EXPERT React Native / Expo developer. Modify the existing code based on user requests.
+  return `You are an EXPERT React Native developer. Modify the existing code.
 
 RULES:
-1. PRESERVE existing functionality unless explicitly asked to change
-2. MAINTAIN code quality and structure
-3. Return the COMPLETE updated code, not just changes
-4. Keep the same design system and patterns
-5. Add new features seamlessly integrated with existing code
+1. Output ONLY valid JavaScript code - no markdown, no explanations
+2. Return the COMPLETE updated code, not just changes
+3. VERIFY all commas, brackets, and syntax before outputting
+4. Keep the same structure and design patterns
+5. All styles in StyleSheet.create() at the bottom
 
-IMPORTANT:
-- Return ONLY the complete code, no explanations
-- Ensure the app still works perfectly after modifications
-- If adding new screens, implement proper navigation state
-${category?.contextHints ? `\nContext for ${category.name} app:\n${category.contextHints}` : ''}`;
+IMPORTANT: Output ONLY code, nothing else.`;
 }
 
 // Lấy suggestions dựa trên category
