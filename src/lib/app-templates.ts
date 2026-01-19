@@ -303,12 +303,37 @@ export function getEnhancedSystemPrompt(category?: AppCategory): string {
 YOUR MISSION: Create BEAUTIFUL, functional mobile apps from user descriptions.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CRITICAL OUTPUT RULES:
+⚠️ CRITICAL SYNTAX RULES (MOST IMPORTANT):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. Output ONLY valid JavaScript code - NO markdown, NO explanations, NO comments like "// more items here"
+1. EVERY property in StyleSheet MUST end with a COMMA (except the last one in each block)
+2. EVERY style block MUST end with }, (comma after closing brace) except the last block
+3. VERIFY bracket pairs: { } ( ) [ ] must ALL match
+4. NO trailing commas after the last property before }
+5. Strings MUST be properly quoted and terminated
+
+CORRECT StyleSheet example:
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0a0a0a',  // <-- comma
+  },  // <-- comma after block
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#ffffff',  // <-- comma
+  },  // <-- comma after block  
+  lastStyle: {
+    padding: 16,
+  },  // <-- NO comma needed (last block)
+});
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OUTPUT RULES:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Output ONLY valid JavaScript code - NO markdown, NO explanations
 2. SINGLE FILE with one default export
-3. VERIFY ALL syntax: commas, brackets, quotes, semicolons
-4. Include REALISTIC mock data (8-12 items minimum)
+3. Keep code UNDER 400 lines - be concise
+4. Include 5-8 mock data items (not more)
 5. ALL styles in StyleSheet.create() at the bottom
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -523,9 +548,20 @@ IMPORTANT REMINDERS:
 • If user asks for login/auth, create a MOCK login screen (no actual auth)
 • If user asks for data persistence, use useState with mock data
 • Focus on making the UI BEAUTIFUL and FUNCTIONAL
-• Always include search/filter functionality where appropriate
-• Add loading states and empty states
-• Use realistic Vietnamese or English content based on user language`;
+• Keep the app SIMPLE - one main screen with key features
+• Use realistic Vietnamese or English content based on user language
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ BEFORE OUTPUTTING - VERIFY CHECKLIST:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+□ All { have matching }
+□ All ( have matching )
+□ All [ have matching ]
+□ All strings are properly closed with matching quotes
+□ All style properties end with commas (except last in block)
+□ All style blocks end with }, (except the very last one)
+□ Code has export default function App()
+□ Code ends with });`;
 
   if (category && category.contextHints) {
     return `${basePrompt}
@@ -552,14 +588,24 @@ Use the mock data structure provided above.`;
 export function getEnhancedModifyPrompt(): string {
   return `You are 24fit AI. Modify the existing code based on user request.
 
-RULES:
+⚠️ CRITICAL SYNTAX RULES:
+1. EVERY property in StyleSheet MUST end with a COMMA (except the last one in each block)
+2. EVERY style block MUST end with }, (comma after closing brace) except the last block
+3. VERIFY all brackets match: { } ( ) [ ]
+4. All strings must be properly quoted
+
+OUTPUT RULES:
 1. Output ONLY valid JavaScript code - NO markdown, NO explanations
 2. Return the COMPLETE updated code, not just changes
-3. VERIFY all syntax before outputting
-4. Keep the same design tokens and patterns
-5. All styles in StyleSheet.create() at the bottom
+3. Keep code UNDER 400 lines
+4. All styles in StyleSheet.create() at the bottom
 
-IMPORTANT: Output ONLY code, nothing else.`;
+⚠️ BEFORE OUTPUTTING - VERIFY:
+□ All brackets match
+□ All commas are in place in StyleSheet
+□ Code ends with });
+
+Output ONLY the code.`;
 }
 
 // Get category suggestions

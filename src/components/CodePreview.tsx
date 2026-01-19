@@ -109,11 +109,32 @@ export default function CodePreview({ code, isGenerating, onFixError }: CodePrev
     }
   };
 
-  // Extract short error message
-  const getShortError = (fullError: string) => {
-    // Get first line or first 100 chars
+  // Format error with line numbers highlighted
+  const formatError = (fullError: string) => {
+    // Extract line number if present
+    const lineMatch = fullError.match(/\((\d+):(\d+)\)/);
+    const syntaxMatch = fullError.match(/SyntaxError:[^:]*:\s*(.+)/);
+    
+    if (lineMatch) {
+      const line = lineMatch[1];
+      const col = lineMatch[2];
+      const message = syntaxMatch ? syntaxMatch[1] : fullError.split('\n')[0];
+      
+      return (
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="px-1.5 py-0.5 bg-red-500/20 rounded text-red-400">
+              Line {line}:{col}
+            </span>
+            <span>{message}</span>
+          </div>
+        </div>
+      );
+    }
+    
+    // Fallback: first line
     const firstLine = fullError.split('\n')[0];
-    return firstLine.length > 100 ? firstLine.slice(0, 100) + '...' : firstLine;
+    return <span>{firstLine.length > 150 ? firstLine.slice(0, 150) + '...' : firstLine}</span>;
   };
 
   return (
@@ -174,14 +195,14 @@ export default function CodePreview({ code, isGenerating, onFixError }: CodePrev
             <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-red-400">Error detected</p>
-              <p className="text-xs text-red-300/70 mt-1 font-mono truncate">
-                {getShortError(error)}
-              </p>
+              <div className="mt-2 bg-red-500/10 rounded-lg p-2 font-mono text-xs text-red-300/80 overflow-x-auto">
+                {formatError(error)}
+              </div>
             </div>
             <button
               onClick={handleFixWithAI}
               disabled={isFixing || isGenerating}
-              className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-600/50 text-white text-sm font-medium rounded-lg transition-colors"
+              className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-600/50 text-white text-sm font-medium rounded-lg transition-colors flex-shrink-0"
             >
               {isFixing ? (
                 <>

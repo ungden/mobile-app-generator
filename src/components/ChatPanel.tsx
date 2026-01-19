@@ -1,20 +1,42 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, Sparkles, User, ChevronDown, RotateCcw } from "lucide-react";
+import { 
+  Send, Loader2, Sparkles, User, ChevronDown, RotateCcw, 
+  ChevronRight, Code, RotateCw, Share2, CheckCircle2, FileCode,
+  AlertCircle
+} from "lucide-react";
 import CategorySelector from "./CategorySelector";
 import UsageIndicator from "./UsageIndicator";
 import {
   APP_CATEGORIES,
   AppCategory,
-  getEnhancedSystemPrompt,
   formatUserPrompt,
 } from "@/lib/app-templates";
+import { validateCode, tryAutoFix, extractCode } from "@/lib/code-validator";
 
+// Message types
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  type?: "text" | "code-change";
+  codeChange?: CodeChange;
+}
+
+// Code change tracking (like Rork)
+interface CodeChange {
+  id: string;
+  timestamp: Date;
+  description: string;
+  files: FileChange[];
+  code: string;
+  previousCode?: string;
+}
+
+interface FileChange {
+  name: string;
+  action: "created" | "edited" | "deleted";
 }
 
 // Available AI models
@@ -53,14 +75,16 @@ export default function ChatPanel({
     {
       id: "1",
       role: "assistant",
-      content:
-        "Hi! I'm 24fit AI. Choose an app category above, then describe your app. I'll generate a complete full-stack app with UI, backend, and database!",
+      content: "Hi! I'm 24fit AI. Choose an app category above, then describe your app idea.",
+      type: "text",
     },
   ]);
   const [input, setInput] = useState("");
   const [selectedModel, setSelectedModel] = useState<AIModel>("claude-sonnet-4.5");
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [currentCode, setCurrentCode] = useState("");
+  const [codeHistory, setCodeHistory] = useState<CodeChange[]>([]);
+  const [expandedChanges, setExpandedChanges] = useState<Set<string>>(new Set());
   const [selectedCategory, setSelectedCategory] = useState<AppCategory | null>(
     () => {
       if (initialCategory) {
@@ -91,7 +115,6 @@ export default function ChatPanel({
     if (initialPrompt && !initialPromptProcessed.current) {
       initialPromptProcessed.current = true;
       setInput(initialPrompt);
-      // Auto-submit after a short delay
       setTimeout(() => {
         handleSubmitWithPrompt(initialPrompt);
       }, 500);
@@ -101,32 +124,74 @@ export default function ChatPanel({
   // Handle "Fix with AI" - auto-trigger when pendingFixError is set
   useEffect(() => {
     if (pendingFixError && !isGenerating) {
-      // Use the external code (from parent) if available, otherwise use local currentCode
       const codeToFix = externalCode || currentCode;
       
       const fixPrompt = `Fix this error in my React Native code:
 
 ERROR: ${pendingFixError}
 
-Please analyze the error and fix the code. Return the complete fixed code.`;
+IMPORTANT: Return ONLY the fixed code. Verify ALL commas and brackets are correct.`;
       
-      // Add a message showing what we're fixing
       const fixMessage: Message = {
         id: Date.now().toString(),
         role: "user",
-        content: `Fix this error: ${pendingFixError.split('\n')[0]}`,
+        content: `Fix error: ${pendingFixError.split('\n')[0].substring(0, 50)}...`,
+        type: "text",
       };
       setMessages((prev) => [...prev, fixMessage]);
       
-      // Trigger the fix
       handleSubmitWithPrompt(fixPrompt);
       
-      // Clear the pending error
       if (onFixErrorHandled) {
         onFixErrorHandled();
       }
     }
   }, [pendingFixError]);
+
+  // Toggle change expansion
+  const toggleChangeExpanded = (changeId: string) => {
+    setExpandedChanges(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(changeId)) {
+        newSet.delete(changeId);
+      } else {
+        newSet.add(changeId);
+      }
+      return newSet;
+    });
+  };
+
+  // Restore to a previous version
+  const handleRestore = (change: CodeChange) => {
+    if (change.code) {
+      setCurrentCode(change.code);
+      onCodeGenerated(change.code);
+      
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: "assistant",
+        content: `Restored to: ${change.description}`,
+        type: "text",
+      }]);
+    }
+  };
+
+  // Rerun a change
+  const handleRerun = (change: CodeChange) => {
+    if (change.previousCode) {
+      setCurrentCode(change.previousCode);
+      // Find the user message that triggered this change and resubmit
+      const userMessageIndex = messages.findIndex(
+        m => m.codeChange?.id === change.id
+      );
+      if (userMessageIndex > 0) {
+        const prevMessage = messages[userMessageIndex - 1];
+        if (prevMessage.role === "user") {
+          handleSubmitWithPrompt(prevMessage.content);
+        }
+      }
+    }
+  };
 
   const handleSubmitWithPrompt = async (promptText: string) => {
     if (!promptText.trim() || isGenerating) return;
@@ -135,6 +200,7 @@ Please analyze the error and fix the code. Return the complete fixed code.`;
       id: Date.now().toString(),
       role: "user",
       content: promptText,
+      type: "text",
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -142,14 +208,12 @@ Please analyze the error and fix the code. Return the complete fixed code.`;
     setIsGenerating(true);
 
     try {
-      // Build conversation history for context
       const conversationHistory = messages
-        .filter((m) => m.id !== "1") // Exclude initial greeting
+        .filter((m) => m.id !== "1" && m.type === "text")
         .map((m) => ({ role: m.role, content: m.content }));
 
-      // Get enhanced prompt based on category
       const enhancedUserPrompt = currentCode
-        ? promptText // For modifications, keep the original prompt
+        ? promptText
         : formatUserPrompt(promptText, selectedCategory || undefined);
 
       const response = await fetch("/api/chat", {
@@ -164,7 +228,6 @@ Please analyze the error and fix the code. Return the complete fixed code.`;
         }),
       });
 
-      // Handle rate limit error
       if (response.status === 429) {
         const data = await response.json();
         setMessages((prev) => [
@@ -173,13 +236,13 @@ Please analyze the error and fix the code. Return the complete fixed code.`;
             id: Date.now().toString(),
             role: "assistant",
             content: `${data.error}\n\nUpgrade to Pro for unlimited generations!`,
+            type: "text",
           },
         ]);
         setIsGenerating(false);
         return;
       }
 
-      // Handle streaming response
       if (response.headers.get("content-type")?.includes("text/event-stream")) {
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
@@ -192,57 +255,81 @@ Please analyze the error and fix the code. Return the complete fixed code.`;
             const chunk = decoder.decode(value);
             fullCode += chunk;
 
-            // Check for clean code marker
+            // Show preview while streaming
             if (fullCode.includes("__CLEAN_CODE__")) {
               const cleanCode = fullCode.split("__CLEAN_CODE__")[1].trim();
               onCodeGenerated(cleanCode);
-              fullCode = cleanCode;
             } else {
-              // Remove markdown if present for preview
-              let previewCode = fullCode;
-              if (previewCode.includes("```")) {
-                previewCode = previewCode
-                  .replace(/```(?:javascript|jsx|js|tsx|react)?\n?/g, "")
-                  .replace(/```\n?/g, "")
-                  .trim();
-              }
+              let previewCode = extractCode(fullCode);
               onCodeGenerated(previewCode);
             }
           }
 
           if (fullCode) {
-            // Final cleanup
-            let cleanCode = fullCode;
-            if (cleanCode.includes("```")) {
-              cleanCode = cleanCode
-                .replace(/```(?:javascript|jsx|js|tsx|react)?\n?/g, "")
-                .replace(/```\n?/g, "")
-                .trim();
+            // Extract and clean code
+            let cleanCode = extractCode(fullCode);
+            
+            // Validate code
+            const validation = validateCode(cleanCode);
+            
+            // Try auto-fix if there are errors
+            if (!validation.valid) {
+              const { code: fixedCode, fixes } = tryAutoFix(cleanCode);
+              if (fixes.length > 0) {
+                cleanCode = fixedCode;
+                console.log("Auto-fixed issues:", fixes);
+              }
             }
+
+            const previousCode = currentCode;
             setCurrentCode(cleanCode);
             onCodeGenerated(cleanCode);
 
-            const successMessage = currentCode
-              ? "Done! I've updated your app. Check the preview on the right."
-              : `Your ${selectedCategory?.name || ""} app is ready! Check the preview. Want any changes?`;
+            // Create code change record
+            const changeId = Date.now().toString();
+            const codeChange: CodeChange = {
+              id: changeId,
+              timestamp: new Date(),
+              description: currentCode 
+                ? `Updated: ${promptText.substring(0, 50)}${promptText.length > 50 ? '...' : ''}`
+                : `Created ${selectedCategory?.name || 'Custom'} app`,
+              files: [
+                { name: "App.js", action: currentCode ? "edited" : "created" },
+              ],
+              code: cleanCode,
+              previousCode: previousCode || undefined,
+            };
 
-            setMessages((prev) => [
-              ...prev,
-              {
-                id: Date.now().toString(),
-                role: "assistant",
-                content: successMessage,
-              },
-            ]);
+            // Add to history
+            setCodeHistory(prev => [...prev, codeChange]);
 
-            // Refresh usage after successful generation
+            // Expand the new change by default
+            setExpandedChanges(prev => new Set([...prev, changeId]));
+
+            // Check validation status for message
+            const revalidation = validateCode(cleanCode);
+            const hasWarnings = revalidation.warnings.length > 0;
+            const hasErrors = !revalidation.valid;
+
+            // Add assistant message with code change
+            const assistantMessage: Message = {
+              id: changeId,
+              role: "assistant",
+              content: hasErrors 
+                ? "Code generated but has some issues. Click 'Fix with AI' if you see errors."
+                : currentCode 
+                  ? "Updated successfully!" 
+                  : "App created successfully!",
+              type: "code-change",
+              codeChange,
+            };
+
+            setMessages((prev) => [...prev, assistantMessage]);
             refreshUsage();
           }
         }
       } else if (response.ok) {
-        // Fallback for non-streaming response
         const data = await response.json();
-
         if (data.code) {
           setCurrentCode(data.code);
           onCodeGenerated(data.code);
@@ -251,8 +338,8 @@ Please analyze the error and fix the code. Return the complete fixed code.`;
             {
               id: Date.now().toString(),
               role: "assistant",
-              content:
-                "Done! I've generated your app. Check the preview on the right. Feel free to ask for modifications!",
+              content: "Done! Check the preview.",
+              type: "text",
             },
           ]);
         } else if (data.error) {
@@ -262,6 +349,7 @@ Please analyze the error and fix the code. Return the complete fixed code.`;
               id: Date.now().toString(),
               role: "assistant",
               content: `Error: ${data.error}`,
+              type: "text",
             },
           ]);
         }
@@ -273,6 +361,7 @@ Please analyze the error and fix the code. Return the complete fixed code.`;
           id: Date.now().toString(),
           role: "assistant",
           content: "Sorry, something went wrong. Please try again.",
+          type: "text",
         },
       ]);
     } finally {
@@ -290,16 +379,99 @@ Please analyze the error and fix the code. Return the complete fixed code.`;
       {
         id: "1",
         role: "assistant",
-        content:
-          "Hi! I'm 24fit AI. Choose an app category above, then describe your app. I'll generate a complete full-stack app with UI, backend, and database!",
+        content: "Hi! I'm 24fit AI. Choose an app category above, then describe your app idea.",
+        type: "text",
       },
     ]);
     setCurrentCode("");
+    setCodeHistory([]);
+    setExpandedChanges(new Set());
     setSelectedCategory(null);
   };
 
   const handleSelectPrompt = (prompt: string) => {
     setInput(prompt);
+  };
+
+  // Render code change card (like Rork)
+  const renderCodeChange = (message: Message) => {
+    const change = message.codeChange;
+    if (!change) return null;
+
+    const isExpanded = expandedChanges.has(change.id);
+
+    return (
+      <div className="bg-[#1a1a1a] border border-[#333] rounded-xl overflow-hidden">
+        {/* Header - always visible */}
+        <button
+          onClick={() => toggleChangeExpanded(change.id)}
+          className="w-full flex items-center gap-3 p-3 hover:bg-[#222] transition-colors text-left"
+        >
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
+            <Sparkles className="w-4 h-4 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-white truncate">{change.description}</p>
+            <p className="text-xs text-gray-500">
+              {change.files.length} file{change.files.length > 1 ? 's' : ''} changed
+            </p>
+          </div>
+          <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+        </button>
+
+        {/* Expanded content */}
+        {isExpanded && (
+          <div className="border-t border-[#333]">
+            {/* Files list */}
+            <div className="p-3 space-y-2">
+              {change.files.map((file, idx) => (
+                <div key={idx} className="flex items-center gap-2 text-sm">
+                  <span className={`w-2 h-2 rounded-full ${
+                    file.action === 'created' ? 'bg-green-400' :
+                    file.action === 'edited' ? 'bg-blue-400' : 'bg-red-400'
+                  }`} />
+                  <FileCode className="w-4 h-4 text-gray-400" />
+                  <span className="text-gray-300">{file.name}</span>
+                  <span className="text-xs text-gray-500 capitalize">{file.action}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2 p-3 pt-0">
+              <button
+                onClick={() => handleRestore(change)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[#222] hover:bg-[#333] rounded-lg transition-colors"
+              >
+                <RotateCcw className="w-3 h-3" />
+                Restore
+              </button>
+              {change.previousCode && (
+                <button
+                  onClick={() => handleRerun(change)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[#222] hover:bg-[#333] rounded-lg transition-colors"
+                >
+                  <RotateCw className="w-3 h-3" />
+                  Rerun
+                </button>
+              )}
+              <button
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[#222] hover:bg-[#333] rounded-lg transition-colors"
+              >
+                <Code className="w-3 h-3" />
+                Code
+              </button>
+              <button
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[#222] hover:bg-[#333] rounded-lg transition-colors"
+              >
+                <Share2 className="w-3 h-3" />
+                Share
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -374,38 +546,40 @@ Please analyze the error and fix the code. Return the complete fixed code.`;
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex gap-3 ${
-              message.role === "user" ? "flex-row-reverse" : ""
-            }`}
-          >
-            <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                message.role === "user"
-                  ? "bg-purple-600"
-                  : "bg-gradient-to-br from-purple-500 to-pink-500"
-              }`}
-            >
-              {message.role === "user" ? (
-                <User className="w-4 h-4" />
-              ) : (
-                <Sparkles className="w-4 h-4" />
-              )}
-            </div>
-            <div
-              className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                message.role === "user"
-                  ? "bg-purple-600 text-white"
-                  : "bg-[#1a1a1a] border border-[#333]"
-              }`}
-            >
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                {message.content}
-              </p>
-            </div>
+          <div key={message.id}>
+            {message.type === "code-change" ? (
+              renderCodeChange(message)
+            ) : (
+              <div className={`flex gap-3 ${message.role === "user" ? "flex-row-reverse" : ""}`}>
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    message.role === "user"
+                      ? "bg-purple-600"
+                      : "bg-gradient-to-br from-purple-500 to-pink-500"
+                  }`}
+                >
+                  {message.role === "user" ? (
+                    <User className="w-4 h-4" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                </div>
+                <div
+                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                    message.role === "user"
+                      ? "bg-purple-600 text-white"
+                      : "bg-[#1a1a1a] border border-[#333]"
+                  }`}
+                >
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                    {message.content}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         ))}
+        
         {isGenerating && (
           <div className="flex gap-3">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
@@ -414,7 +588,7 @@ Please analyze the error and fix the code. Return the complete fixed code.`;
             <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl px-4 py-3">
               <div className="flex items-center gap-2 text-sm text-gray-400">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Crafting your {selectedCategory?.name?.toLowerCase() || ""} app...
+                Generating {selectedCategory?.name?.toLowerCase() || "your"} app...
               </div>
             </div>
           </div>
