@@ -1,460 +1,197 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
-import Logo from "@/components/Logo";
-import {
-  ArrowRight,
-  Zap,
-  Smartphone,
-  Code2,
-  Rocket,
-  Check,
-  Star,
-  ChevronRight,
-  ShoppingBag,
-  Users,
-  Heart,
-  CheckSquare,
-  DollarSign,
-  Utensils,
-  BookOpen,
-  Map,
-  Play,
-} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Mic, Globe, ChevronDown, Sparkles } from "lucide-react";
 
-// App categories for quick start
-const appCategories = [
-  {
-    id: "ecommerce",
-    name: "E-Commerce",
-    icon: ShoppingBag,
-    color: "#10b981",
-    example: "App bán quần áo với giỏ hàng",
-  },
-  {
-    id: "social",
-    name: "Social Media",
-    icon: Users,
-    color: "#3b82f6",
-    example: "Mạng xã hội chia sẻ ảnh",
-  },
-  {
-    id: "fitness",
-    name: "Health & Fitness",
-    icon: Heart,
-    color: "#ef4444",
-    example: "App theo dõi workout với timer",
-  },
-  {
-    id: "productivity",
-    name: "Productivity",
-    icon: CheckSquare,
-    color: "#8b5cf6",
-    example: "Todo list với categories",
-  },
-  {
-    id: "finance",
-    name: "Finance",
-    icon: DollarSign,
-    color: "#f59e0b",
-    example: "App quản lý chi tiêu cá nhân",
-  },
-  {
-    id: "food",
-    name: "Food & Delivery",
-    icon: Utensils,
-    color: "#f97316",
-    example: "App đặt đồ ăn với menu",
-  },
-  {
-    id: "education",
-    name: "Education",
-    icon: BookOpen,
-    color: "#06b6d4",
-    example: "Flashcard app học từ vựng",
-  },
-  {
-    id: "entertainment",
-    name: "Entertainment",
-    icon: Play,
-    color: "#ec4899",
-    example: "Music player với playlist",
-  },
+// AI Models available
+const AI_MODELS = [
+  { id: "claude-sonnet-4.5", name: "Sonnet 4.5", icon: "sparkles" },
+  { id: "claude-opus-4.5", name: "Opus 4.5", icon: "sparkles" },
+  { id: "gpt-5.2", name: "GPT-5.2", icon: "sparkles" },
+  { id: "gemini-3-pro", name: "Gemini 3 Pro", icon: "sparkles" },
 ];
 
-const features = [
-  {
-    icon: Zap,
-    title: "AI-Powered Generation",
-    description:
-      "Describe your app in plain English and watch it come to life in seconds.",
-  },
-  {
-    icon: Smartphone,
-    title: "Live Preview",
-    description:
-      "See your app running in real-time with our interactive phone simulator.",
-  },
-  {
-    icon: Code2,
-    title: "Clean React Native Code",
-    description:
-      "Get production-ready Expo code that you can customize and deploy.",
-  },
-  {
-    icon: Rocket,
-    title: "One-Click Export",
-    description:
-      "Download your project or deploy directly to the App Store and Play Store.",
-  },
-];
+export default function HomePage() {
+  const router = useRouter();
+  const [prompt, setPrompt] = useState("");
+  const [selectedModel, setSelectedModel] = useState(AI_MODELS[0]);
+  const [showModelDropdown, setShowModelDropdown] = useState(false);
+  const [isPublic, setIsPublic] = useState(true);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-const steps = [
-  {
-    number: "01",
-    title: "Describe Your App",
-    description: "Tell us what you want to build in plain English",
-  },
-  {
-    number: "02",
-    title: "AI Generates Code",
-    description: "Our AI creates a complete React Native application",
-  },
-  {
-    number: "03",
-    title: "Preview & Refine",
-    description: "See it live, make changes, iterate until perfect",
-  },
-  {
-    number: "04",
-    title: "Export & Deploy",
-    description: "Download your code or publish to app stores",
-  },
-];
+  const handleSubmit = () => {
+    if (!prompt.trim()) return;
+    router.push(`/build?prompt=${encodeURIComponent(prompt)}&model=${selectedModel.id}`);
+  };
 
-const examples = [
-  "A fitness tracking app with workout logging",
-  "A recipe app with categories and favorites",
-  "A habit tracker with streaks and reminders",
-];
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
 
-export default function LandingPage() {
-  const [inputValue, setInputValue] = useState("");
+  // Auto-resize textarea
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setPrompt(e.target.value);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0a]/80 backdrop-blur-lg border-b border-white/5">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Logo size="md" />
-
-            <div className="hidden md:flex items-center gap-8">
-              <a href="#features" className="text-gray-400 hover:text-white transition-colors">
-                Features
-              </a>
-              <a href="#how-it-works" className="text-gray-400 hover:text-white transition-colors">
-                How it works
-              </a>
-              <a href="#pricing" className="text-gray-400 hover:text-white transition-colors">
-                Pricing
-              </a>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <Link
-                href="/login"
-                className="text-gray-400 hover:text-white transition-colors text-sm"
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/build"
-                className="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                Start Building
-              </Link>
-            </div>
-          </div>
+    <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col">
+      {/* Minimal Navigation */}
+      <nav className="flex items-center justify-between px-6 py-4">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-white" />
+          <span className="text-lg font-semibold tracking-tight">24fit</span>
         </div>
-      </nav>
 
-      {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 rounded-full px-4 py-1.5 mb-8">
-            <Star className="w-4 h-4 text-purple-400" />
-            <span className="text-sm text-purple-300">Powered by GPT-5.2 & Claude Opus 4.5</span>
-          </div>
-
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
-            Build full-stack apps
-            <br />
-            <span className="bg-gradient-to-r from-purple-400 via-pink-500 to-orange-400 bg-clip-text text-transparent">
-              in 24 seconds.
-            </span>
-          </h1>
-
-          <p className="text-xl text-gray-400 max-w-2xl mx-auto mb-10">
-            Describe your app idea and watch it come to life. 24fit generates
-            complete mobile apps with backend, auth, and database - all powered by AI.
-          </p>
-
-          {/* Main Input */}
-          <div className="max-w-2xl mx-auto">
-            <div className="relative">
-              <input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Describe the mobile app you want to build..."
-                className="w-full bg-[#1a1a1a] border border-[#333] rounded-2xl px-6 py-4 pr-32 text-lg focus:outline-none focus:border-purple-500 transition-colors"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && inputValue.trim()) {
-                    window.location.href = `/build?prompt=${encodeURIComponent(inputValue)}`;
-                  }
-                }}
-              />
-              <Link
-                href={inputValue.trim() ? `/build?prompt=${encodeURIComponent(inputValue)}` : "/build"}
-                className="absolute right-2 top-1/2 -translate-y-1/2 bg-purple-600 hover:bg-purple-500 px-6 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
-              >
-                Build
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-
-            {/* Example prompts */}
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
-              <span className="text-sm text-gray-500">Try:</span>
-              {examples.map((example, i) => (
-                <button
-                  key={i}
-                  onClick={() => setInputValue(example)}
-                  className="text-sm text-purple-400 hover:text-purple-300 transition-colors"
-                >
-                  &ldquo;{example}&rdquo;{i < examples.length - 1 ? "," : ""}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* App Categories - Quick Start */}
-      <section className="py-16 px-4 border-t border-white/5">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-              What do you want to build?
-            </h2>
-            <p className="text-gray-400">
-              Choose a category to get started with smart AI suggestions
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {appCategories.map((category) => {
-              const Icon = category.icon;
-              return (
-                <Link
-                  key={category.id}
-                  href={`/build?category=${category.id}`}
-                  className="group bg-[#111] border border-[#222] rounded-2xl p-5 hover:border-purple-500/50 transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-purple-500/10"
-                >
-                  <div
-                    className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110"
-                    style={{ backgroundColor: `${category.color}20` }}
-                  >
-                    <Icon className="w-6 h-6" style={{ color: category.color }} />
-                  </div>
-                  <h3 className="font-semibold mb-1 group-hover:text-purple-400 transition-colors">
-                    {category.name}
-                  </h3>
-                  <p className="text-xs text-gray-500 line-clamp-2">
-                    {category.example}
-                  </p>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="py-20 px-4 border-t border-white/5">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-              Everything you need to build apps
-            </h2>
-            <p className="text-gray-400 max-w-2xl mx-auto">
-              From idea to App Store in minutes, not months.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {features.map((feature, i) => (
-              <div
-                key={i}
-                className="bg-[#111] border border-[#222] rounded-2xl p-6 hover:border-purple-500/50 transition-colors"
-              >
-                <div className="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center mb-4">
-                  <feature.icon className="w-6 h-6 text-purple-400" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">{feature.title}</h3>
-                <p className="text-gray-400 text-sm">{feature.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* How it Works */}
-      <section id="how-it-works" className="py-20 px-4 bg-[#080808]">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4">How it works</h2>
-            <p className="text-gray-400">Four simple steps to your mobile app</p>
-          </div>
-
-          <div className="grid md:grid-cols-4 gap-8">
-            {steps.map((step, i) => (
-              <div key={i} className="relative">
-                <div className="text-6xl font-bold text-purple-500/20 mb-4">
-                  {step.number}
-                </div>
-                <h3 className="text-lg font-semibold mb-2">{step.title}</h3>
-                <p className="text-gray-400 text-sm">{step.description}</p>
-                {i < steps.length - 1 && (
-                  <ChevronRight className="hidden md:block absolute top-8 -right-4 w-8 h-8 text-purple-500/30" />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      <section id="pricing" className="py-20 px-4 border-t border-white/5">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-              Simple, transparent pricing
-            </h2>
-            <p className="text-gray-400">Start for free, upgrade when you need more</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Free Tier */}
-            <div className="bg-[#111] border border-[#222] rounded-2xl p-8">
-              <h3 className="text-xl font-semibold mb-2">Free</h3>
-              <p className="text-gray-400 text-sm mb-4">Perfect for trying out</p>
-              <div className="text-4xl font-bold mb-6">
-                $0<span className="text-lg text-gray-400">/month</span>
-              </div>
-              <ul className="space-y-3 mb-8">
-                {["5 generations per day", "All flagship AI models", "Live preview", "Code export"].map(
-                  (item, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm">
-                      <Check className="w-4 h-4 text-green-400" />
-                      {item}
-                    </li>
-                  )
-                )}
-              </ul>
-              <Link
-                href="/build"
-                className="block w-full text-center bg-white/10 hover:bg-white/20 py-3 rounded-xl font-medium transition-colors"
-              >
-                Get Started
-              </Link>
-            </div>
-
-            {/* Pro Tier */}
-            <div className="bg-gradient-to-b from-purple-500/20 to-transparent border border-purple-500/50 rounded-2xl p-8 relative">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-500 text-xs font-medium px-3 py-1 rounded-full">
-                Most Popular
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Pro</h3>
-              <p className="text-gray-400 text-sm mb-4">For serious builders</p>
-              <div className="text-4xl font-bold mb-6">
-                $29<span className="text-lg text-gray-400">/month</span>
-              </div>
-              <ul className="space-y-3 mb-8">
-                {[
-                  "Unlimited generations",
-                  "GPT-5.2, Claude Sonnet/Opus 4.5, Gemini 3 Pro",
-                  "Full Expo project export",
-                  "QR code testing",
-                  "Priority support",
-                ].map((item, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm">
-                    <Check className="w-4 h-4 text-green-400" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <Link href="/pricing" className="w-full bg-purple-600 hover:bg-purple-500 py-3 rounded-xl font-medium transition-colors block text-center">
-                Upgrade to Pro
-              </Link>
-            </div>
-
-            {/* Enterprise Tier */}
-            <div className="bg-[#111] border border-[#222] rounded-2xl p-8">
-              <h3 className="text-xl font-semibold mb-2">Enterprise</h3>
-              <p className="text-gray-400 text-sm mb-4">For teams and agencies</p>
-              <div className="text-4xl font-bold mb-6">Custom</div>
-              <ul className="space-y-3 mb-8">
-                {[
-                  "Everything in Pro",
-                  "Team collaboration",
-                  "Custom AI training",
-                  "Dedicated support",
-                  "SLA guarantee",
-                ].map((item, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm">
-                    <Check className="w-4 h-4 text-green-400" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <button className="w-full bg-white/10 hover:bg-white/20 py-3 rounded-xl font-medium transition-colors">
-                Contact Sales
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 px-4 bg-gradient-to-t from-purple-500/10 to-transparent">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-            Ready to build your app?
-          </h2>
-          <p className="text-gray-400 mb-8">
-            Join thousands of creators building mobile apps with AI.
-          </p>
-          <Link
-            href="/build"
-            className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-500 px-8 py-4 rounded-xl text-lg font-medium transition-colors"
-          >
-            Start Building for Free
-            <ArrowRight className="w-5 h-5" />
+        <div className="flex items-center gap-6 text-sm text-gray-400">
+          <Link href="/faq" className="hover:text-white transition-colors">
+            FAQ
+          </Link>
+          <Link href="https://twitter.com/24fit" className="hover:text-white transition-colors">
+            X
+          </Link>
+          <Link href="/pricing" className="hover:text-white transition-colors">
+            Pricing
           </Link>
         </div>
-      </section>
 
-      {/* Footer */}
-      <footer className="py-12 px-4 border-t border-white/5">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <Logo size="sm" />
-          <p className="text-sm text-gray-500">
-            2026 24fit. Built with Next.js, Expo, Supabase & AI.
-          </p>
+        <Link href="/login">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity">
+            <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+            </svg>
+          </div>
+        </Link>
+      </nav>
+
+      {/* Main Content - Centered */}
+      <main className="flex-1 flex flex-col items-center justify-center px-4 -mt-16">
+        {/* Headline */}
+        <h1 className="text-4xl sm:text-5xl font-bold text-center mb-3 tracking-tight">
+          Build native mobile apps, fast.
+        </h1>
+        
+        <p className="text-gray-400 text-center mb-12 text-lg">
+          24fit builds complete, cross-platform mobile apps using AI and Expo (React Native).
+        </p>
+
+        {/* Main Input Card */}
+        <div className="w-full max-w-2xl">
+          <div className="bg-[#141414] rounded-2xl border border-[#2a2a2a] overflow-hidden">
+            {/* Textarea */}
+            <div className="p-4">
+              <textarea
+                ref={textareaRef}
+                value={prompt}
+                onChange={handleTextareaChange}
+                onKeyDown={handleKeyDown}
+                placeholder="Describe the mobile app you want to build..."
+                className="w-full bg-transparent text-white placeholder-gray-500 resize-none focus:outline-none text-base leading-relaxed min-h-[60px]"
+                rows={1}
+              />
+            </div>
+
+            {/* Bottom Bar */}
+            <div className="flex items-center justify-between px-4 py-3 border-t border-[#2a2a2a]">
+              <div className="flex items-center gap-2">
+                {/* Attachment button */}
+                <button className="p-2 text-gray-500 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <path d="M21 15l-5-5L5 21" />
+                  </svg>
+                </button>
+
+                {/* Model Selector */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowModelDropdown(!showModelDropdown)}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-300 hover:bg-white/5 rounded-lg transition-colors"
+                  >
+                    <Sparkles className="w-4 h-4 text-purple-400" />
+                    <span>{selectedModel.name}</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+                  </button>
+
+                  {showModelDropdown && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setShowModelDropdown(false)}
+                      />
+                      <div className="absolute bottom-full left-0 mb-2 w-48 bg-[#1a1a1a] border border-[#333] rounded-xl shadow-2xl z-50 overflow-hidden">
+                        {AI_MODELS.map((model) => (
+                          <button
+                            key={model.id}
+                            onClick={() => {
+                              setSelectedModel(model);
+                              setShowModelDropdown(false);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-sm hover:bg-white/5 transition-colors flex items-center gap-2 ${
+                              selectedModel.id === model.id ? "text-white bg-white/5" : "text-gray-400"
+                            }`}
+                          >
+                            <Sparkles className="w-4 h-4 text-purple-400" />
+                            {model.name}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {/* Public/Private Toggle */}
+                <button
+                  onClick={() => setIsPublic(!isPublic)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-400 hover:bg-white/5 rounded-lg transition-colors"
+                >
+                  <Globe className="w-4 h-4" />
+                  <span>{isPublic ? "Public" : "Private"}</span>
+                </button>
+
+                {/* Voice Input */}
+                <button className="p-2 text-gray-500 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                  <Mic className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Examples */}
+          <div className="flex flex-wrap justify-center gap-2 mt-6">
+            {[
+              "A fitness app with workout tracking",
+              "E-commerce app with cart",
+              "Social media feed",
+            ].map((example, i) => (
+              <button
+                key={i}
+                onClick={() => setPrompt(example)}
+                className="px-4 py-2 text-sm text-gray-500 hover:text-white bg-[#141414] hover:bg-[#1a1a1a] border border-[#2a2a2a] rounded-full transition-colors"
+              >
+                {example}
+              </button>
+            ))}
+          </div>
         </div>
+      </main>
+
+      {/* Subtle Footer */}
+      <footer className="py-6 text-center">
+        <p className="text-xs text-gray-600">
+          Press Enter to generate • Powered by AI
+        </p>
       </footer>
     </div>
   );
