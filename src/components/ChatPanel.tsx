@@ -255,12 +255,9 @@ IMPORTANT: Return ONLY the fixed code. Verify ALL commas and brackets are correc
             const chunk = decoder.decode(value);
             fullCode += chunk;
 
-            // Show preview while streaming
-            if (fullCode.includes("__CLEAN_CODE__")) {
-              const cleanCode = fullCode.split("__CLEAN_CODE__")[1].trim();
-              onCodeGenerated(cleanCode);
-            } else {
-              let previewCode = extractCode(fullCode);
+            // Show preview while streaming (extract and clean on the fly)
+            let previewCode = extractCode(fullCode);
+            if (previewCode) {
               onCodeGenerated(previewCode);
             }
           }

@@ -345,6 +345,11 @@ export function tryAutoFix(code: string): { code: string; fixes: string[] } {
 export function extractCode(response: string): string {
   let code = response;
 
+  // Remove any __CLEAN_CODE__ markers (legacy)
+  if (code.includes('__CLEAN_CODE__')) {
+    code = code.split('__CLEAN_CODE__')[0].trim();
+  }
+
   // Remove markdown code blocks
   if (code.includes('```')) {
     code = code
@@ -353,19 +358,45 @@ export function extractCode(response: string): string {
       .trim();
   }
 
-  // Remove any leading/trailing explanations
-  const importMatch = code.match(/import\s+/);
-  if (importMatch && importMatch.index && importMatch.index > 0) {
-    code = code.substring(importMatch.index);
+  // Find the FIRST import statement (start of actual code)
+  const firstImportIndex = code.indexOf('import ');
+  if (firstImportIndex > 0) {
+    code = code.substring(firstImportIndex);
   }
 
-  // Find the end of StyleSheet.create and trim anything after
-  const styleSheetEndMatch = code.match(/StyleSheet\.create\s*\(\s*\{[\s\S]*?\}\s*\)\s*;?\s*$/);
-  if (!styleSheetEndMatch) {
-    // If no proper ending, try to find last });
-    const lastBraceIndex = code.lastIndexOf('});');
-    if (lastBraceIndex > 0) {
-      code = code.substring(0, lastBraceIndex + 3);
+  // Find the LAST }); which ends StyleSheet.create
+  // This prevents duplicate code from being included
+  const lastClosingIndex = code.lastIndexOf('});');
+  if (lastClosingIndex > 0) {
+    code = code.substring(0, lastClosingIndex + 3);
+  }
+
+  // Make sure we only have ONE import block at the start
+  // If there are multiple "import { useState }" etc, keep only the first complete block
+  const lines = code.split('\n');
+  const importEndIndex = lines.findIndex((line, idx) => {
+    // Find first non-import, non-empty line after imports
+    return idx > 0 && 
+           !line.trim().startsWith('import ') && 
+           !line.trim().startsWith('//') &&
+           line.trim() !== '' &&
+           !line.includes(' from ');
+  });
+
+  if (importEndIndex > 0) {
+    // Check if there are duplicate imports later in the code
+    const codeAfterImports = lines.slice(importEndIndex).join('\n');
+    if (codeAfterImports.includes('\nimport ')) {
+      // There are duplicate imports - truncate at the duplicate
+      const duplicateImportIdx = codeAfterImports.indexOf('\nimport ');
+      const cleanCodeAfterImports = codeAfterImports.substring(0, duplicateImportIdx);
+      code = lines.slice(0, importEndIndex).join('\n') + '\n' + cleanCodeAfterImports;
+      
+      // Find the proper ending again
+      const lastBrace = code.lastIndexOf('});');
+      if (lastBrace > 0) {
+        code = code.substring(0, lastBrace + 3);
+      }
     }
   }
 

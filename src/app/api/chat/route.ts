@@ -176,7 +176,6 @@ async function handleGemini(
 
 function createStreamResponse(stream: any, provider: string) {
   const encoder = new TextEncoder();
-  let fullContent = "";
 
   const readableStream = new ReadableStream({
     async start(controller) {
@@ -184,36 +183,20 @@ function createStreamResponse(stream: any, provider: string) {
         if (provider === "openai") {
           for await (const chunk of stream) {
             const content = chunk.choices[0]?.delta?.content || "";
-            fullContent += content;
             controller.enqueue(encoder.encode(content));
           }
         } else if (provider === "anthropic") {
           for await (const event of stream) {
             if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
               const content = event.delta.text || "";
-              fullContent += content;
               controller.enqueue(encoder.encode(content));
             }
           }
         } else if (provider === "gemini") {
           for await (const chunk of stream.stream) {
             const content = chunk.text() || "";
-            fullContent += content;
             controller.enqueue(encoder.encode(content));
           }
-        }
-
-        // Clean up markdown code blocks
-        let cleanCode = fullContent;
-        if (cleanCode.includes("```")) {
-          cleanCode = cleanCode
-            .replace(/```(?:javascript|jsx|js|tsx|react)?\n?/g, "")
-            .replace(/```\n?/g, "")
-            .trim();
-        }
-
-        if (cleanCode !== fullContent) {
-          controller.enqueue(encoder.encode("\n__CLEAN_CODE__\n" + cleanCode));
         }
 
         controller.close();
