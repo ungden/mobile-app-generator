@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   try {
     const { 
       prompt, 
-      model = "claude-sonnet-4-5-20250514",
+      model = "claude-sonnet-4-20250514",
       existingFiles,
       isModification = false,
     }: GenerateRequest = await request.json();
@@ -40,11 +40,11 @@ export async function POST(request: NextRequest) {
       : getAppGenerationPrompt();
 
     // Map model name to actual model ID
-    let anthropicModel = "claude-sonnet-4-5-20250514";
+    let anthropicModel = "claude-sonnet-4-20250514";
     if (model.includes("opus")) {
-      anthropicModel = "claude-sonnet-4-5-20250514"; // Use sonnet as fallback
+      anthropicModel = "claude-sonnet-4-20250514"; // Use sonnet as fallback
     } else if (model.includes("sonnet")) {
-      anthropicModel = "claude-sonnet-4-5-20250514";
+      anthropicModel = "claude-sonnet-4-20250514";
     }
 
     console.log(`Generating app with model: ${anthropicModel}, prompt: ${prompt.substring(0, 100)}...`);

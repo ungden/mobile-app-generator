@@ -1,6 +1,7 @@
 /**
  * Snack Service - Manages Expo Snack embeds
  * Uses Snack's embedded URL approach for compatibility with Next.js
+ * Docs: https://github.com/expo/snack/blob/main/docs/url-query-parameters.md
  */
 
 export interface SnackFile {
@@ -45,6 +46,9 @@ export function convertToSnackFiles(files: Record<string, string>): Record<strin
 /**
  * Generate Snack embed URL
  * This URL can be used in an iframe for live preview
+ * 
+ * For single file: uses 'code' parameter
+ * For multi-file: uses 'files' parameter with proper JSON format
  */
 export function generateSnackEmbedUrl(project: SnackProject): string {
   const params = new URLSearchParams();
@@ -58,16 +62,38 @@ export function generateSnackEmbedUrl(project: SnackProject): string {
   params.set('supportedPlatforms', 'ios,android,web');
   params.set('sdkVersion', project.sdkVersion || SNACK_SDK_VERSION);
   
-  // Encode files as JSON
-  const filesObj: Record<string, string> = {};
-  for (const [path, file] of Object.entries(project.files)) {
-    filesObj[path] = file.contents;
-  }
-  params.set('files', JSON.stringify(filesObj));
+  const fileCount = Object.keys(project.files).length;
   
-  // Encode dependencies
-  if (Object.keys(project.dependencies).length > 0) {
-    params.set('dependencies', JSON.stringify(project.dependencies));
+  if (fileCount === 1 && project.files['App.js']) {
+    // Single file - use 'code' parameter (simpler, shorter URL)
+    params.set('code', project.files['App.js'].contents);
+  } else {
+    // Multi-file - use 'files' parameter with proper Snack format
+    // Format: { 'path': { type: 'CODE', contents: '...' } }
+    const filesObj: Record<string, { type: string; contents: string }> = {};
+    for (const [path, file] of Object.entries(project.files)) {
+      filesObj[path] = {
+        type: file.type,
+        contents: file.contents,
+      };
+    }
+    params.set('files', JSON.stringify(filesObj));
+  }
+  
+  // Encode dependencies as comma-separated list (Snack format)
+  const deps = Object.entries(project.dependencies)
+    .map(([name, version]) => {
+      // If version is like "6.x", just use the package name
+      // Snack will use compatible version
+      if (version.includes('x') || version.includes('*')) {
+        return name;
+      }
+      return `${name}@${version}`;
+    })
+    .join(',');
+  
+  if (deps) {
+    params.set('dependencies', deps);
   }
   
   return `${SNACK_EMBED_BASE}?${params.toString()}`;
@@ -84,14 +110,33 @@ export function generateSnackWebUrl(project: SnackProject): string {
   params.set('theme', 'dark');
   params.set('sdkVersion', project.sdkVersion || SNACK_SDK_VERSION);
   
-  // For web URL, we use a different approach - encode main code
-  const appCode = project.files['App.js']?.contents || '';
-  if (appCode) {
-    params.set('code', appCode);
+  const fileCount = Object.keys(project.files).length;
+  
+  if (fileCount === 1 && project.files['App.js']) {
+    // Single file - use code parameter
+    params.set('code', project.files['App.js'].contents);
+  } else {
+    // Multi-file - use files parameter
+    const filesObj: Record<string, { type: string; contents: string }> = {};
+    for (const [path, file] of Object.entries(project.files)) {
+      filesObj[path] = {
+        type: file.type,
+        contents: file.contents,
+      };
+    }
+    params.set('files', JSON.stringify(filesObj));
   }
   
   // Add dependencies
-  const deps = Object.keys(project.dependencies).join(',');
+  const deps = Object.entries(project.dependencies)
+    .map(([name, version]) => {
+      if (version.includes('x') || version.includes('*')) {
+        return name;
+      }
+      return `${name}@${version}`;
+    })
+    .join(',');
+  
   if (deps) {
     params.set('dependencies', deps);
   }
