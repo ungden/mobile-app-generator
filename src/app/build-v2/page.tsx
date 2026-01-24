@@ -6,17 +6,8 @@ import Link from "next/link";
 import Logo from "@/components/Logo";
 import { useToast } from "@/components/Toast";
 import {
-  SandpackProvider,
-  SandpackLayout,
-  SandpackCodeEditor,
-  SandpackPreview,
-  useSandpack,
-} from "@codesandbox/sandpack-react";
-import { nightOwl } from "@codesandbox/sandpack-themes";
-import {
   ArrowLeft,
   Download,
-  ChevronDown,
   Save,
   Share2,
   QrCode,
@@ -30,14 +21,20 @@ import {
   FolderTree,
   Smartphone,
   ExternalLink,
-  AlertTriangle,
   Plus,
   Trash2,
-  History,
+  RefreshCw,
+  Code,
+  Eye,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { getSnackManager, createSnackManager, ProjectState, FileChange, ProjectFile } from "@/lib/snack-manager";
-import { processAIResponse } from "@/lib/ai-agent";
+import {
+  createSnackProject,
+  generateSnackUrls,
+  getDefaultSnackProject,
+  SnackProject,
+  SnackUrls,
+} from "@/lib/snack-service";
 import { downloadAsExpoProject } from "@/lib/export";
 
 // Message types
@@ -49,20 +46,15 @@ interface Message {
   isExpanded?: boolean;
 }
 
-// Error listener component inside Sandpack
-function ErrorListener({ onError }: { onError: (error: string | null) => void }) {
-  const { sandpack } = useSandpack();
-  
-  useEffect(() => {
-    const errors = sandpack.error;
-    if (errors) {
-      onError(errors.message || String(errors));
-    } else {
-      onError(null);
-    }
-  }, [sandpack.error, onError]);
+interface FileChange {
+  path: string;
+  action: "created" | "edited" | "deleted";
+}
 
-  return null;
+interface ProjectState {
+  name: string;
+  files: Record<string, string>;
+  dependencies: Record<string, string>;
 }
 
 function BuildV2Content() {
@@ -70,18 +62,31 @@ function BuildV2Content() {
   const router = useRouter();
   const { showToast } = useToast();
   const projectId = searchParams.get("project");
-  
+
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
   // State
-  const [snackManager] = useState(() => getSnackManager());
-  const [projectState, setProjectState] = useState<ProjectState | null>(null);
+  const [projectState, setProjectState] = useState<ProjectState>(() => {
+    const defaultProject = getDefaultSnackProject();
+    const files: Record<string, string> = {};
+    for (const [path, file] of Object.entries(defaultProject.files)) {
+      files[path] = file.contents;
+    }
+    return {
+      name: "My App",
+      files,
+      dependencies: defaultProject.dependencies,
+    };
+  });
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
       role: "assistant",
-      content: "Hi! I'm 24fit AI. Describe the app you want to build and I'll create it for you. I can create multi-file projects with screens, components, and more!",
+      content:
+        "Hi! I'm 24fit AI. Describe the app you want to build and I'll create a complete multi-file project for you with screens, components, and navigation!",
     },
   ]);
   const [input, setInput] = useState("");
@@ -90,14 +95,28 @@ function BuildV2Content() {
   const [showFilesPanel, setShowFilesPanel] = useState(true);
   const [selectedFile, setSelectedFile] = useState<string>("App.js");
   const [activeTab, setActiveTab] = useState<"preview" | "code">("preview");
-  const [previewError, setPreviewError] = useState<string | null>(null);
-  const [previewKey, setPreviewKey] = useState(0);
   const [projectName, setProjectName] = useState("My App");
-  const [currentProjectId, setCurrentProjectId] = useState<string | null>(projectId);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(
+    projectId
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingProject, setIsLoadingProject] = useState(!!projectId);
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
-  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+  const [snackUrls, setSnackUrls] = useState<SnackUrls | null>(null);
+  const [previewKey, setPreviewKey] = useState(0);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(true);
+
+  // Generate Snack URLs when project changes
+  useEffect(() => {
+    const snackProject = createSnackProject(
+      projectName,
+      projectState.files,
+      projectState.dependencies,
+      "Built with 24fit"
+    );
+    const urls = generateSnackUrls(snackProject);
+    setSnackUrls(urls);
+  }, [projectState, projectName]);
 
   // Load project if ID provided
   useEffect(() => {
@@ -124,18 +143,26 @@ function BuildV2Content() {
 
       // Load multi-file project or legacy single file
       if (project.files) {
-        snackManager.importProject({
+        // Convert from stored format to our format
+        const files: Record<string, string> = {};
+        for (const [path, file] of Object.entries(project.files)) {
+          files[path] = (file as any).contents || (file as string);
+        }
+        setProjectState({
           name: project.name,
-          files: project.files,
+          files,
           dependencies: project.dependencies || {},
         });
       } else if (project.code) {
         // Legacy single file - create basic project structure
-        snackManager.writeFile("App.js", project.code);
+        setProjectState({
+          name: project.name,
+          files: { "App.js": project.code },
+          dependencies: {},
+        });
       }
-      
-      setProjectState(snackManager.getState());
-      setPreviewKey(k => k + 1);
+
+      setPreviewKey((k) => k + 1);
     } catch (error) {
       console.error("Failed to load project:", error);
       showToast("Failed to load project", "error");
@@ -143,25 +170,6 @@ function BuildV2Content() {
       setIsLoadingProject(false);
     }
   };
-
-  // Initialize Snack Manager
-  useEffect(() => {
-    if (!projectId) {
-      snackManager.initialize();
-    }
-    
-    // Subscribe to state changes
-    const unsubscribe = snackManager.subscribe((state) => {
-      setProjectState(state);
-    });
-
-    // Get initial state
-    setProjectState(snackManager.getState());
-
-    return () => {
-      unsubscribe();
-    };
-  }, [snackManager, projectId]);
 
   // Scroll to bottom of messages
   const scrollToBottom = useCallback(() => {
@@ -172,26 +180,7 @@ function BuildV2Content() {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Convert project files to Sandpack format
-  const getSandpackFiles = () => {
-    if (!projectState?.files) return { "/App.js": "" };
-    
-    const files: Record<string, string> = {};
-    
-    for (const [path, file] of Object.entries(projectState.files)) {
-      files[`/${path}`] = file.contents;
-    }
-    
-    // Add index.js entry point
-    files["/index.js"] = `import { AppRegistry } from 'react-native';
-import App from './App';
-AppRegistry.registerComponent('App', () => App);
-AppRegistry.runApplication('App', { rootTag: document.getElementById('root') });`;
-    
-    return files;
-  };
-
-  // Handle form submit
+  // Handle form submit - Call /api/generate
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isGenerating) return;
@@ -204,86 +193,105 @@ AppRegistry.runApplication('App', { rootTag: document.getElementById('root') });
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsGenerating(true);
+    setIsPreviewLoading(true);
 
     try {
-      // Get current file context
-      const files = snackManager.listFiles();
-      const fileContents: Record<string, string> = {};
-      
-      // Include all files in context (but limit large files)
-      for (const file of files) {
-        const content = snackManager.readFile(file);
-        if (content && content.length < 10000) { // Skip very large files
-          fileContents[file] = content;
-        }
-      }
+      // Determine if this is a new app or modification
+      const hasExistingApp =
+        Object.keys(projectState.files).length > 1 ||
+        (projectState.files["App.js"] &&
+          !projectState.files["App.js"].includes("Welcome to 24fit"));
 
-      const response = await fetch("/api/agent", {
+      const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: input,
-          projectFiles: files,
-          fileContents,
-          history: messages.filter(m => m.id !== "1").slice(-10).map(m => ({ // Last 10 messages
-            role: m.role,
-            content: m.content,
-          })),
+          existingFiles: hasExistingApp ? projectState.files : undefined,
+          isModification: hasExistingApp,
         }),
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to generate response");
+      const data = await response.json();
+
+      if (!response.ok || data.error) {
+        throw new Error(data.error || "Failed to generate app");
       }
 
-      // Handle streaming response
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let fullResponse = "";
+      // Extract the generated app
+      const { app, message } = data;
 
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value);
-          fullResponse += chunk;
+      if (!app || !app.files) {
+        throw new Error("Invalid response from AI");
+      }
+
+      // Calculate file changes
+      const changes: FileChange[] = [];
+      const oldFiles = projectState.files;
+      const newFiles = app.files;
+
+      // Check for new/modified files
+      for (const path of Object.keys(newFiles)) {
+        if (!oldFiles[path]) {
+          changes.push({ path, action: "created" });
+        } else if (oldFiles[path] !== newFiles[path]) {
+          changes.push({ path, action: "edited" });
         }
+      }
 
-        // Process the response and execute tools
-        const { message, changes, toolResults } = await processAIResponse(
-          fullResponse,
-          snackManager
-        );
-
-        // Force preview refresh
-        if (changes.length > 0) {
-          setPreviewKey(k => k + 1);
+      // Check for deleted files
+      for (const path of Object.keys(oldFiles)) {
+        if (!newFiles[path]) {
+          changes.push({ path, action: "deleted" });
         }
+      }
 
-        // Add assistant message with changes
-        const assistantMessage: Message = {
-          id: Date.now().toString(),
-          role: "assistant",
-          content: message || "Done! I've made the changes.",
-          changes: changes.length > 0 ? changes : undefined,
-          isExpanded: true,
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
+      // Update project state
+      setProjectState({
+        name: app.appName || projectName,
+        files: newFiles,
+        dependencies: app.dependencies || {},
+      });
 
-        // Show toast for changes
-        if (changes.length > 0) {
-          showToast(`${changes.length} file(s) updated`, "success");
-        }
+      if (app.appName) {
+        setProjectName(app.appName);
+      }
+
+      // Refresh preview
+      setPreviewKey((k) => k + 1);
+
+      // Add assistant message with changes
+      const assistantMessage: Message = {
+        id: Date.now().toString(),
+        role: "assistant",
+        content:
+          message ||
+          `Done! I've created "${app.appName}" with ${Object.keys(newFiles).length} files.`,
+        changes: changes.length > 0 ? changes : undefined,
+        isExpanded: true,
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
+
+      // Show toast for changes
+      if (changes.length > 0) {
+        const created = changes.filter((c) => c.action === "created").length;
+        const edited = changes.filter((c) => c.action === "edited").length;
+        const parts = [];
+        if (created > 0) parts.push(`${created} created`);
+        if (edited > 0) parts.push(`${edited} updated`);
+        showToast(`Files: ${parts.join(", ")}`, "success");
       }
     } catch (error: any) {
+      console.error("Generation error:", error);
       setMessages((prev) => [
         ...prev,
         {
           id: Date.now().toString(),
           role: "assistant",
-          content: `Error: ${error.message || "Something went wrong"}`,
+          content: `Error: ${error.message || "Something went wrong. Please try again."}`,
         },
       ]);
+      showToast("Generation failed", "error");
     } finally {
       setIsGenerating(false);
     }
@@ -300,7 +308,16 @@ AppRegistry.runApplication('App', { rootTag: document.getElementById('root') });
 
   // Reset project
   const handleReset = () => {
-    snackManager.reset();
+    const defaultProject = getDefaultSnackProject();
+    const files: Record<string, string> = {};
+    for (const [path, file] of Object.entries(defaultProject.files)) {
+      files[path] = file.contents;
+    }
+    setProjectState({
+      name: "My App",
+      files,
+      dependencies: defaultProject.dependencies,
+    });
     setMessages([
       {
         id: "1",
@@ -308,19 +325,23 @@ AppRegistry.runApplication('App', { rootTag: document.getElementById('root') });
         content: "Project reset! Describe the app you want to build.",
       },
     ]);
-    setPreviewError(null);
     setCurrentProjectId(null);
     setProjectName("My App");
-    setPreviewKey(k => k + 1);
+    setSelectedFile("App.js");
+    setPreviewKey((k) => k + 1);
     router.replace("/build-v2");
   };
 
   // Save project
   const handleSaveProject = async () => {
-    if (!projectState) return;
-    
     setIsSaving(true);
     try {
+      // Convert files to storage format
+      const filesForStorage: Record<string, { contents: string }> = {};
+      for (const [path, contents] of Object.entries(projectState.files)) {
+        filesForStorage[path] = { contents };
+      }
+
       const isUpdate = !!currentProjectId;
       const response = await fetch("/api/projects", {
         method: isUpdate ? "PUT" : "POST",
@@ -328,7 +349,7 @@ AppRegistry.runApplication('App', { rootTag: document.getElementById('root') });
         body: JSON.stringify({
           id: currentProjectId,
           name: projectName,
-          files: projectState.files,
+          files: filesForStorage,
           dependencies: projectState.dependencies,
           version: 2, // Mark as multi-file project
         }),
@@ -344,7 +365,11 @@ AppRegistry.runApplication('App', { rootTag: document.getElementById('root') });
       } else {
         if (!currentProjectId && data.project?.id) {
           setCurrentProjectId(data.project.id);
-          window.history.replaceState({}, "", `/build-v2?project=${data.project.id}`);
+          window.history.replaceState(
+            {},
+            "",
+            `/build-v2?project=${data.project.id}`
+          );
         }
         showToast(isUpdate ? "Project updated!" : "Project saved!", "success");
       }
@@ -358,37 +383,27 @@ AppRegistry.runApplication('App', { rootTag: document.getElementById('root') });
 
   // Download project
   const handleDownload = async () => {
-    if (!projectState?.files) return;
-    
-    // Get App.js content for export
-    const appCode = projectState.files["App.js"]?.contents || "";
+    const appCode = projectState.files["App.js"] || "";
     await downloadAsExpoProject(appCode, projectName);
     setShowDownloadMenu(false);
     showToast("Project downloaded!", "success");
   };
 
-  // Get Snack URL for external preview
-  const getSnackUrl = () => {
-    if (!projectState?.files) return "";
-    const appCode = projectState.files["App.js"]?.contents || "";
-    const encodedCode = encodeURIComponent(appCode);
-    return `https://snack.expo.dev/?code=${encodedCode}&name=${encodeURIComponent(projectName)}`;
+  // Refresh preview
+  const handleRefreshPreview = () => {
+    setIsPreviewLoading(true);
+    setPreviewKey((k) => k + 1);
   };
-
-  // Handle error
-  const handleError = useCallback((err: string | null) => {
-    setPreviewError(err);
-  }, []);
 
   // Create new file
   const handleCreateFile = () => {
     const fileName = prompt("Enter file name (e.g., screens/NewScreen.js):");
     if (fileName) {
-      const defaultContent = fileName.includes("Screen") 
+      const defaultContent = fileName.includes("Screen")
         ? `import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-export default function ${fileName.split('/').pop()?.replace('.js', '')}() {
+export default function ${fileName.split("/").pop()?.replace(".js", "")}() {
   return (
     <View style={styles.container}>
       <Text style={styles.text}>New Screen</Text>
@@ -410,11 +425,17 @@ const styles = StyleSheet.create({
 });
 `
         : `// ${fileName}\n`;
-      
-      snackManager.writeFile(fileName, defaultContent);
+
+      setProjectState((prev) => ({
+        ...prev,
+        files: {
+          ...prev.files,
+          [fileName]: defaultContent,
+        },
+      }));
       setSelectedFile(fileName);
       setActiveTab("code");
-      setPreviewKey(k => k + 1);
+      setPreviewKey((k) => k + 1);
     }
   };
 
@@ -425,12 +446,27 @@ const styles = StyleSheet.create({
       return;
     }
     if (confirm(`Delete ${path}?`)) {
-      snackManager.deleteFile(path);
+      setProjectState((prev) => {
+        const newFiles = { ...prev.files };
+        delete newFiles[path];
+        return { ...prev, files: newFiles };
+      });
       if (selectedFile === path) {
         setSelectedFile("App.js");
       }
-      setPreviewKey(k => k + 1);
+      setPreviewKey((k) => k + 1);
     }
+  };
+
+  // Update file content
+  const handleFileContentChange = (content: string) => {
+    setProjectState((prev) => ({
+      ...prev,
+      files: {
+        ...prev.files,
+        [selectedFile]: content,
+      },
+    }));
   };
 
   // Render file change card
@@ -470,8 +506,8 @@ const styles = StyleSheet.create({
                     change.action === "created"
                       ? "bg-green-400"
                       : change.action === "edited"
-                      ? "bg-blue-400"
-                      : "bg-red-400"
+                        ? "bg-blue-400"
+                        : "bg-red-400"
                   }`}
                 />
                 <span className="text-gray-300 font-mono text-xs">
@@ -490,33 +526,47 @@ const styles = StyleSheet.create({
 
   // Organize files into tree structure
   const getFileTree = () => {
-    if (!projectState?.files) return [];
-    
     const files = Object.keys(projectState.files).sort();
-    const tree: { path: string; name: string; isFolder: boolean; depth: number }[] = [];
+    const tree: {
+      path: string;
+      name: string;
+      isFolder: boolean;
+      depth: number;
+    }[] = [];
     const folders = new Set<string>();
-    
+
     // First pass: collect all folders
-    files.forEach(path => {
-      const parts = path.split('/');
+    files.forEach((path) => {
+      const parts = path.split("/");
       if (parts.length > 1) {
         folders.add(parts[0]);
       }
     });
-    
+
     // Add folders and their files
-    Array.from(folders).sort().forEach(folder => {
-      tree.push({ path: folder, name: folder, isFolder: true, depth: 0 });
-      files.filter(f => f.startsWith(folder + '/')).forEach(f => {
-        tree.push({ path: f, name: f.split('/').pop()!, isFolder: false, depth: 1 });
+    Array.from(folders)
+      .sort()
+      .forEach((folder) => {
+        tree.push({ path: folder, name: folder, isFolder: true, depth: 0 });
+        files
+          .filter((f) => f.startsWith(folder + "/"))
+          .forEach((f) => {
+            tree.push({
+              path: f,
+              name: f.split("/").pop()!,
+              isFolder: false,
+              depth: 1,
+            });
+          });
       });
-    });
-    
+
     // Add root-level files
-    files.filter(f => !f.includes('/')).forEach(f => {
-      tree.push({ path: f, name: f, isFolder: false, depth: 0 });
-    });
-    
+    files
+      .filter((f) => !f.includes("/"))
+      .forEach((f) => {
+        tree.push({ path: f, name: f, isFolder: false, depth: 0 });
+      });
+
     return tree;
   };
 
@@ -558,13 +608,11 @@ const styles = StyleSheet.create({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Ready indicator */}
-          {projectState?.isReady && (
-            <div className="hidden sm:flex items-center gap-2 text-xs text-gray-400 bg-[#1a1a1a] px-3 py-1.5 rounded-lg">
-              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-              Ready
-            </div>
-          )}
+          {/* File count indicator */}
+          <div className="hidden sm:flex items-center gap-2 text-xs text-gray-400 bg-[#1a1a1a] px-3 py-1.5 rounded-lg">
+            <FileCode className="w-3 h-3" />
+            {Object.keys(projectState.files).length} files
+          </div>
 
           {/* QR Code button */}
           <button
@@ -582,7 +630,11 @@ const styles = StyleSheet.create({
             className="flex items-center gap-2 text-gray-400 hover:text-white px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
             title="Save project"
           >
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {isSaving ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
           </button>
 
           {/* Download button */}
@@ -596,14 +648,19 @@ const styles = StyleSheet.create({
             </button>
             {showDownloadMenu && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowDownloadMenu(false)} />
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setShowDownloadMenu(false)}
+                />
                 <div className="absolute right-0 mt-2 w-56 bg-[#1a1a1a] border border-[#333] rounded-lg shadow-xl z-50">
                   <button
                     onClick={handleDownload}
                     className="w-full text-left px-4 py-3 text-sm hover:bg-[#222] transition-colors rounded-lg"
                   >
                     <div className="font-medium">Download Expo Project</div>
-                    <div className="text-xs text-gray-500">Full project ready to build</div>
+                    <div className="text-xs text-gray-500">
+                      Full project ready to build
+                    </div>
                   </button>
                 </div>
               </>
@@ -697,7 +754,7 @@ const styles = StyleSheet.create({
                 <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl px-4 py-3">
                   <div className="flex items-center gap-2 text-sm text-gray-400">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Working on it...
+                    Generating your app...
                   </div>
                 </div>
               </div>
@@ -739,9 +796,8 @@ const styles = StyleSheet.create({
                   : "text-gray-400 hover:text-white"
               }`}
             >
-              <Smartphone className="w-4 h-4" />
+              <Eye className="w-4 h-4" />
               Preview
-              {previewError && <span className="w-2 h-2 rounded-full bg-red-500" />}
             </button>
             <button
               onClick={() => setActiveTab("code")}
@@ -751,37 +807,37 @@ const styles = StyleSheet.create({
                   : "text-gray-400 hover:text-white"
               }`}
             >
-              <FileCode className="w-4 h-4" />
+              <Code className="w-4 h-4" />
               Code
             </button>
-            
-            {/* Open in Snack link */}
-            <a
-              href={getSnackUrl()}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ml-auto flex items-center gap-1 text-xs text-gray-500 hover:text-purple-400 transition-colors"
-            >
-              Open in Expo Snack
-              <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
 
-          {/* Error Banner */}
-          {previewError && !isGenerating && (
-            <div className="bg-red-500/10 border-b border-red-500/20 px-4 py-2">
-              <div className="flex items-center gap-2 text-sm text-red-400">
-                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate">{previewError.split('\n')[0]}</span>
-                <button
-                  onClick={() => setInput(`Fix this error: ${previewError.split('\n')[0]}`)}
-                  className="ml-auto px-2 py-1 bg-purple-600 hover:bg-purple-500 text-white text-xs rounded"
-                >
-                  Fix with AI
-                </button>
-              </div>
-            </div>
-          )}
+            {/* Refresh preview */}
+            {activeTab === "preview" && (
+              <button
+                onClick={handleRefreshPreview}
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-purple-400 transition-colors"
+                title="Refresh preview"
+              >
+                <RefreshCw
+                  className={`w-3 h-3 ${isPreviewLoading ? "animate-spin" : ""}`}
+                />
+                Refresh
+              </button>
+            )}
+
+            {/* Open in Snack link */}
+            {snackUrls && (
+              <a
+                href={snackUrls.webUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-auto flex items-center gap-1 text-xs text-gray-500 hover:text-purple-400 transition-colors"
+              >
+                Open in Expo Snack
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+          </div>
 
           {/* Content */}
           <div className="flex-1 flex overflow-hidden">
@@ -808,8 +864,8 @@ const styles = StyleSheet.create({
                         item.isFolder
                           ? "text-gray-500 cursor-default"
                           : selectedFile === item.path
-                          ? "bg-purple-600/20 text-purple-400"
-                          : "text-gray-400 hover:bg-[#1a1a1a] hover:text-white cursor-pointer"
+                            ? "bg-purple-600/20 text-purple-400"
+                            : "text-gray-400 hover:bg-[#1a1a1a] hover:text-white cursor-pointer"
                       }`}
                       style={{ paddingLeft: `${8 + item.depth * 12}px` }}
                       onClick={() => {
@@ -841,89 +897,85 @@ const styles = StyleSheet.create({
 
             {/* Main content area */}
             <div className="flex-1 overflow-hidden">
-              {projectState?.isReady && (
-                <SandpackProvider
-                  key={previewKey}
-                  template="react"
-                  theme={nightOwl}
-                  files={getSandpackFiles()}
-                  customSetup={{
-                    dependencies: {
-                      "react-native-web": "~0.19.10",
-                      ...projectState.dependencies,
-                    },
-                    entry: "/index.js",
-                  }}
-                  options={{
-                    recompileMode: "delayed",
-                    recompileDelay: 500,
-                    autorun: true,
-                    autoReload: false,
-                    activeFile: `/${selectedFile}`,
-                  }}
-                >
-                  <ErrorListener onError={handleError} />
-                  <SandpackLayout
+              {activeTab === "preview" ? (
+                <div className="w-full h-full flex items-center justify-center p-4 overflow-auto bg-[#111]">
+                  <div
+                    className="relative bg-black border-4 border-[#333] shadow-2xl overflow-hidden"
                     style={{
-                      height: "100%",
-                      border: "none",
-                      borderRadius: 0,
-                      background: "transparent",
+                      width: 393,
+                      height: 852,
+                      borderRadius: "3rem",
                     }}
                   >
-                    {activeTab === "preview" ? (
-                      <div className="w-full h-full flex items-center justify-center p-4 overflow-auto bg-[#111]">
-                        <div
-                          className="relative bg-black border-4 border-[#333] shadow-2xl overflow-hidden"
-                          style={{
-                            width: 393,
-                            height: 852,
-                            borderRadius: "3rem",
-                          }}
-                        >
-                          {/* Dynamic Island */}
-                          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-28 h-8 bg-black rounded-full z-10" />
+                    {/* Dynamic Island */}
+                    <div className="absolute top-2 left-1/2 -translate-x-1/2 w-28 h-8 bg-black rounded-full z-10" />
 
-                          {/* Screen */}
-                          <div
-                            className="w-full h-full overflow-hidden"
-                            style={{ borderRadius: "calc(3rem - 4px)" }}
-                          >
-                            <SandpackPreview
-                              showNavigator={false}
-                              showOpenInCodeSandbox={false}
-                              showRefreshButton={false}
-                              style={{
-                                height: "100%",
-                                border: "none",
-                                background: "#0a0a0a",
-                              }}
-                            />
+                    {/* Screen */}
+                    <div
+                      className="w-full h-full overflow-hidden relative"
+                      style={{ borderRadius: "calc(3rem - 4px)" }}
+                    >
+                      {/* Loading overlay */}
+                      {isPreviewLoading && (
+                        <div className="absolute inset-0 bg-[#0a0a0a] flex items-center justify-center z-20">
+                          <div className="text-center">
+                            <Loader2 className="w-8 h-8 animate-spin text-purple-500 mx-auto mb-2" />
+                            <p className="text-xs text-gray-400">
+                              Loading preview...
+                            </p>
                           </div>
-
-                          {/* Home indicator */}
-                          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-gray-600 rounded-full" />
                         </div>
-                      </div>
-                    ) : (
-                      <div className="h-full flex">
-                        <SandpackCodeEditor
-                          showLineNumbers
-                          showTabs={false}
-                          style={{
-                            height: "100%",
-                            flex: 1,
-                          }}
+                      )}
+
+                      {/* Snack iframe */}
+                      {snackUrls && (
+                        <iframe
+                          ref={iframeRef}
+                          key={previewKey}
+                          src={snackUrls.embedUrl}
+                          className="w-full h-full border-0"
+                          style={{ background: "#0a0a0a" }}
+                          onLoad={() => setIsPreviewLoading(false)}
+                          allow="accelerometer; ambient-light-sensor; camera; encrypted-media; geolocation; gyroscope; microphone; midi; payment; usb; vr; xr-spatial-tracking"
+                          sandbox="allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"
                         />
-                      </div>
-                    )}
-                  </SandpackLayout>
-                </SandpackProvider>
-              )}
-              
-              {!projectState?.isReady && (
-                <div className="h-full flex items-center justify-center text-gray-500">
-                  <Loader2 className="w-8 h-8 animate-spin" />
+                      )}
+                    </div>
+
+                    {/* Home indicator */}
+                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-gray-600 rounded-full" />
+                  </div>
+                </div>
+              ) : (
+                <div className="h-full flex flex-col">
+                  {/* File name header */}
+                  <div className="h-10 bg-[#1a1a1a] border-b border-[#333] flex items-center px-4">
+                    <span className="text-sm font-mono text-gray-400">
+                      {selectedFile}
+                    </span>
+                  </div>
+
+                  {/* Code editor */}
+                  <div className="flex-1 overflow-hidden">
+                    <textarea
+                      value={projectState.files[selectedFile] || ""}
+                      onChange={(e) => handleFileContentChange(e.target.value)}
+                      className="w-full h-full bg-[#0d0d0d] text-gray-300 font-mono text-sm p-4 resize-none focus:outline-none"
+                      spellCheck={false}
+                      style={{ tabSize: 2 }}
+                    />
+                  </div>
+
+                  {/* Update preview button */}
+                  <div className="h-12 bg-[#1a1a1a] border-t border-[#333] flex items-center justify-end px-4">
+                    <button
+                      onClick={handleRefreshPreview}
+                      className="flex items-center gap-2 bg-purple-600 hover:bg-purple-500 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      Update Preview
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -946,8 +998,8 @@ const styles = StyleSheet.create({
             </div>
 
             <div className="bg-white p-4 rounded-xl mb-4 flex justify-center">
-              {getSnackUrl() ? (
-                <QRCodeSVG value={getSnackUrl()} size={200} />
+              {snackUrls?.qrCodeUrl ? (
+                <QRCodeSVG value={snackUrls.qrCodeUrl} size={200} />
               ) : (
                 <div className="text-gray-500 text-center py-8">
                   Preview not ready yet
@@ -965,15 +1017,17 @@ const styles = StyleSheet.create({
             </div>
 
             <div className="mt-4 pt-4 border-t border-[#222]">
-              <a
-                href={getSnackUrl()}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-purple-400 hover:text-purple-300 text-sm flex items-center gap-1"
-              >
-                Or open in Expo Snack
-                <ExternalLink className="w-3 h-3" />
-              </a>
+              {snackUrls && (
+                <a
+                  href={snackUrls.webUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-purple-400 hover:text-purple-300 text-sm flex items-center gap-1"
+                >
+                  Or open in Expo Snack
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
             </div>
           </div>
         </div>

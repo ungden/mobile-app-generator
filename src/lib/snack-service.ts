@@ -1,0 +1,220 @@
+/**
+ * Snack Service - Manages Expo Snack embeds
+ * Uses Snack's embedded URL approach for compatibility with Next.js
+ */
+
+export interface SnackFile {
+  type: 'CODE' | 'ASSET';
+  contents: string;
+}
+
+export interface SnackProject {
+  name: string;
+  description?: string;
+  files: Record<string, SnackFile>;
+  dependencies: Record<string, string>;
+  sdkVersion?: string;
+}
+
+export interface SnackUrls {
+  embedUrl: string;
+  webUrl: string;
+  qrCodeUrl: string;
+}
+
+const SNACK_SDK_VERSION = '52.0.0';
+const SNACK_EMBED_BASE = 'https://snack.expo.dev/embedded';
+const SNACK_WEB_BASE = 'https://snack.expo.dev';
+
+/**
+ * Convert project files to Snack file format
+ */
+export function convertToSnackFiles(files: Record<string, string>): Record<string, SnackFile> {
+  const snackFiles: Record<string, SnackFile> = {};
+  
+  for (const [path, contents] of Object.entries(files)) {
+    snackFiles[path] = {
+      type: 'CODE',
+      contents,
+    };
+  }
+  
+  return snackFiles;
+}
+
+/**
+ * Generate Snack embed URL
+ * This URL can be used in an iframe for live preview
+ */
+export function generateSnackEmbedUrl(project: SnackProject): string {
+  const params = new URLSearchParams();
+  
+  // Basic parameters
+  params.set('name', project.name);
+  params.set('description', project.description || 'Built with 24fit');
+  params.set('platform', 'web');
+  params.set('theme', 'dark');
+  params.set('preview', 'true');
+  params.set('supportedPlatforms', 'ios,android,web');
+  params.set('sdkVersion', project.sdkVersion || SNACK_SDK_VERSION);
+  
+  // Encode files as JSON
+  const filesObj: Record<string, string> = {};
+  for (const [path, file] of Object.entries(project.files)) {
+    filesObj[path] = file.contents;
+  }
+  params.set('files', JSON.stringify(filesObj));
+  
+  // Encode dependencies
+  if (Object.keys(project.dependencies).length > 0) {
+    params.set('dependencies', JSON.stringify(project.dependencies));
+  }
+  
+  return `${SNACK_EMBED_BASE}?${params.toString()}`;
+}
+
+/**
+ * Generate Snack web URL (for "Open in Snack" button)
+ */
+export function generateSnackWebUrl(project: SnackProject): string {
+  const params = new URLSearchParams();
+  
+  params.set('name', project.name);
+  params.set('platform', 'web');
+  params.set('theme', 'dark');
+  params.set('sdkVersion', project.sdkVersion || SNACK_SDK_VERSION);
+  
+  // For web URL, we use a different approach - encode main code
+  const appCode = project.files['App.js']?.contents || '';
+  if (appCode) {
+    params.set('code', appCode);
+  }
+  
+  // Add dependencies
+  const deps = Object.keys(project.dependencies).join(',');
+  if (deps) {
+    params.set('dependencies', deps);
+  }
+  
+  return `${SNACK_WEB_BASE}?${params.toString()}`;
+}
+
+/**
+ * Generate QR code URL for Expo Go
+ * Uses a minimal snack URL that works with QR scanners
+ */
+export function generateQRCodeUrl(project: SnackProject): string {
+  // For QR codes, we create a simpler URL that redirects to the snack
+  const webUrl = generateSnackWebUrl(project);
+  return webUrl;
+}
+
+/**
+ * Generate all Snack URLs for a project
+ */
+export function generateSnackUrls(project: SnackProject): SnackUrls {
+  return {
+    embedUrl: generateSnackEmbedUrl(project),
+    webUrl: generateSnackWebUrl(project),
+    qrCodeUrl: generateQRCodeUrl(project),
+  };
+}
+
+/**
+ * Create a SnackProject from raw files and dependencies
+ */
+export function createSnackProject(
+  name: string,
+  files: Record<string, string>,
+  dependencies: Record<string, string>,
+  description?: string
+): SnackProject {
+  return {
+    name,
+    description,
+    files: convertToSnackFiles(files),
+    dependencies,
+    sdkVersion: SNACK_SDK_VERSION,
+  };
+}
+
+/**
+ * Default project template
+ */
+export function getDefaultSnackProject(): SnackProject {
+  return {
+    name: 'My App',
+    description: 'Built with 24fit',
+    sdkVersion: SNACK_SDK_VERSION,
+    files: {
+      'App.js': {
+        type: 'CODE',
+        contents: `import React from 'react';
+import { View, Text, StyleSheet, SafeAreaView, StatusBar } from 'react-native';
+
+export default function App() {
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#0a0a0a" />
+      <View style={styles.content}>
+        <Text style={styles.title}>Welcome to 24fit</Text>
+        <Text style={styles.subtitle}>Describe your app to get started</Text>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0a0a0a',
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#a1a1aa',
+    textAlign: 'center',
+  },
+});
+`,
+      },
+    },
+    dependencies: {},
+  };
+}
+
+/**
+ * Check if URL is too long for embedding
+ * Browsers typically have 2000-8000 char limits
+ */
+export function isUrlTooLong(url: string): boolean {
+  return url.length > 8000;
+}
+
+/**
+ * Generate a shortened embed URL by only including essential files
+ */
+export function generateMinimalEmbedUrl(project: SnackProject): string {
+  // Only include App.js for minimal embed
+  const minimalFiles: Record<string, SnackFile> = {
+    'App.js': project.files['App.js'] || { type: 'CODE', contents: '' },
+  };
+  
+  const minimalProject: SnackProject = {
+    ...project,
+    files: minimalFiles,
+  };
+  
+  return generateSnackEmbedUrl(minimalProject);
+}

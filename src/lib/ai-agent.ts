@@ -1,323 +1,406 @@
 /**
- * AI Agent - Manages AI interactions with tools
- * Inspired by Lovable's agent architecture
+ * AI Agent - Generates complete multi-file apps in JSON format
+ * Inspired by Rork's architecture
  */
 
-import type { SnackManager, FileChange } from './snack-manager';
-
-// Tool definitions for the AI
-export interface Tool {
-  name: string;
+export interface GeneratedApp {
+  appName: string;
   description: string;
-  parameters: {
-    type: string;
-    properties: Record<string, { type: string; description: string }>;
-    required: string[];
-  };
+  files: Record<string, string>;
+  dependencies: Record<string, string>;
 }
 
-export const AVAILABLE_TOOLS: Tool[] = [
-  {
-    name: 'write_file',
-    description: 'Create a new file or completely overwrite an existing file with new contents. Use this for creating new screens, components, or when making major changes to a file.',
-    parameters: {
-      type: 'object',
-      properties: {
-        path: { type: 'string', description: 'The file path (e.g., "screens/HomeScreen.js", "components/Button.js")' },
-        contents: { type: 'string', description: 'The complete file contents' },
-      },
-      required: ['path', 'contents'],
-    },
-  },
-  {
-    name: 'edit_file',
-    description: 'Edit an existing file by replacing specific text. Use this for small, targeted changes like fixing a bug, changing a color, or updating a single function. More efficient than rewriting the entire file.',
-    parameters: {
-      type: 'object',
-      properties: {
-        path: { type: 'string', description: 'The file path to edit' },
-        search: { type: 'string', description: 'The exact text to find (must match exactly, including whitespace and indentation)' },
-        replace: { type: 'string', description: 'The new text to replace with' },
-      },
-      required: ['path', 'search', 'replace'],
-    },
-  },
-  {
-    name: 'delete_file',
-    description: 'Delete a file from the project',
-    parameters: {
-      type: 'object',
-      properties: {
-        path: { type: 'string', description: 'The file path to delete' },
-      },
-      required: ['path'],
-    },
-  },
-  {
-    name: 'read_file',
-    description: 'Read the contents of a file to understand its current state before making changes',
-    parameters: {
-      type: 'object',
-      properties: {
-        path: { type: 'string', description: 'The file path to read' },
-      },
-      required: ['path'],
-    },
-  },
-  {
-    name: 'list_files',
-    description: 'List all files in the project to understand the project structure',
-    parameters: {
-      type: 'object',
-      properties: {},
-      required: [],
-    },
-  },
-  {
-    name: 'add_dependency',
-    description: 'Add an npm package dependency to the project. Use this when you need external libraries like expo-linear-gradient, react-native-maps, etc.',
-    parameters: {
-      type: 'object',
-      properties: {
-        name: { type: 'string', description: 'The npm package name (e.g., "expo-linear-gradient", "react-native-vector-icons")' },
-        version: { type: 'string', description: 'The version (e.g., "12.x" or "*" for latest). Default is "*"' },
-      },
-      required: ['name'],
-    },
-  },
-];
-
-export interface ToolCall {
-  name: string;
-  arguments: Record<string, any>;
-}
-
-export interface ToolResult {
-  success: boolean;
-  result?: any;
+export interface ParsedResponse {
+  app: GeneratedApp | null;
+  message: string;
   error?: string;
-  changes?: FileChange[];
 }
 
 /**
- * Execute a tool call
+ * System prompt for generating COMPLETE apps in JSON format
  */
-export function executeTool(toolCall: ToolCall, snackManager: SnackManager): ToolResult {
-  try {
-    switch (toolCall.name) {
-      case 'write_file': {
-        const { path, contents } = toolCall.arguments;
-        const change = snackManager.writeFile(path, contents);
-        return { success: true, result: `File ${path} ${change.action}`, changes: [change] };
-      }
+export function getAppGenerationPrompt(): string {
+  return `You are an expert React Native and Expo developer. Your task is to generate COMPLETE, production-ready mobile apps.
 
-      case 'edit_file': {
-        const { path, search, replace } = toolCall.arguments;
-        const change = snackManager.editFile(path, search, replace);
-        if (!change) {
-          return { success: false, error: `Could not find text to replace in ${path}. Make sure the search text matches exactly.` };
-        }
-        return { success: true, result: `File ${path} edited`, changes: [change] };
-      }
+## OUTPUT FORMAT
 
-      case 'delete_file': {
-        const { path } = toolCall.arguments;
-        const change = snackManager.deleteFile(path);
-        if (!change) {
-          return { success: false, error: `File ${path} not found` };
-        }
-        return { success: true, result: `File ${path} deleted`, changes: [change] };
-      }
+You MUST respond with valid JSON in this exact format:
 
-      case 'read_file': {
-        const { path } = toolCall.arguments;
-        const contents = snackManager.readFile(path);
-        if (contents === null) {
-          return { success: false, error: `File ${path} not found` };
-        }
-        return { success: true, result: contents };
-      }
-
-      case 'list_files': {
-        const files = snackManager.listFiles();
-        return { success: true, result: files };
-      }
-
-      case 'add_dependency': {
-        const { name, version = '*' } = toolCall.arguments;
-        snackManager.addDependency(name, version);
-        return { success: true, result: `Added dependency ${name}@${version}` };
-      }
-
-      default:
-        return { success: false, error: `Unknown tool: ${toolCall.name}` };
-    }
-  } catch (error: any) {
-    return { success: false, error: error.message || 'Tool execution failed' };
+\`\`\`json
+{
+  "appName": "App Name Here",
+  "description": "Brief description of the app",
+  "files": {
+    "App.js": "// Full code here",
+    "screens/HomeScreen.js": "// Full code here",
+    "screens/OtherScreen.js": "// Full code here",
+    "components/Button.js": "// Full code here",
+    "components/Card.js": "// Full code here",
+    "constants/Colors.js": "// Full code here"
+  },
+  "dependencies": {
+    "@react-navigation/native": "6.x",
+    "@react-navigation/native-stack": "6.x",
+    "react-native-screens": "~3.29.0",
+    "react-native-safe-area-context": "4.8.2"
   }
 }
+\`\`\`
 
-/**
- * Parse tool calls from AI response
- * AI should respond in this format:
- * <tool_call>
- * {"name": "write_file", "arguments": {"path": "...", "contents": "..."}}
- * </tool_call>
- */
-export function parseToolCalls(response: string): ToolCall[] {
-  const toolCalls: ToolCall[] = [];
+## CRITICAL REQUIREMENTS
+
+### 1. App Structure (MANDATORY)
+Every app MUST have these files:
+- \`App.js\` - Entry point with NavigationContainer and Stack Navigator
+- \`screens/HomeScreen.js\` - Main screen
+- \`screens/\` - At least 2-3 screens for a complete app
+- \`components/\` - Reusable UI components (Button, Card, etc.)
+- \`constants/Colors.js\` - Design tokens
+
+### 2. Navigation Setup (App.js)
+\`\`\`javascript
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import HomeScreen from './screens/HomeScreen';
+// Import other screens...
+
+const Stack = createNativeStackNavigator();
+
+export default function App() {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: '#0a0a0a' },
+        }}
+      >
+        <Stack.Screen name="Home" component={HomeScreen} />
+        {/* Add other screens */}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+\`\`\`
+
+### 3. Design System (constants/Colors.js)
+\`\`\`javascript
+export default {
+  // Backgrounds
+  background: '#0a0a0a',
+  card: '#111111',
+  elevated: '#1a1a1a',
   
-  // Match <tool_call>...</tool_call> blocks
-  const toolCallRegex = /<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g;
-  let match;
+  // Primary
+  primary: '#7c3aed',
+  primaryLight: '#8b5cf6',
   
-  while ((match = toolCallRegex.exec(response)) !== null) {
-    try {
-      const toolCall = JSON.parse(match[1].trim());
-      if (toolCall.name && toolCall.arguments) {
-        toolCalls.push(toolCall);
-      }
-    } catch (e) {
-      console.warn('Failed to parse tool call:', match[1]);
-    }
-  }
+  // Status
+  success: '#10b981',
+  warning: '#f59e0b',
+  error: '#ef4444',
   
-  return toolCalls;
+  // Text
+  text: '#ffffff',
+  textSecondary: '#e5e5e5',
+  textMuted: '#a1a1aa',
+  
+  // Border
+  border: '#27272a',
+};
+\`\`\`
+
+### 4. Screen Template
+\`\`\`javascript
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  StatusBar,
+  FlatList,
+  TouchableOpacity,
+} from 'react-native';
+import Colors from '../constants/Colors';
+
+export default function ScreenName({ navigation }) {
+  // State and logic here
+  
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={Colors.background} />
+      {/* Content */}
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  // More styles...
+});
+\`\`\`
+
+### 5. Component Template
+\`\`\`javascript
+import React from 'react';
+import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import Colors from '../constants/Colors';
+
+export default function Button({ title, onPress, variant = 'primary' }) {
+  return (
+    <TouchableOpacity
+      style={[styles.button, variant === 'secondary' && styles.secondary]}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <Text style={styles.text}>{title}</Text>
+    </TouchableOpacity>
+  );
+}
+
+const styles = StyleSheet.create({
+  button: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  secondary: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  text: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
+\`\`\`
+
+### 6. Code Quality Rules
+- Use functional components with hooks
+- Use StyleSheet.create() for ALL styles
+- Use FlatList for lists (NOT ScrollView with .map())
+- Include realistic mock data (8-15 items)
+- All strings properly escaped in JSON
+- No trailing commas in JSON
+- Proper imports in every file
+
+### 7. UI/UX Guidelines
+- Dark theme by default (background: #0a0a0a)
+- Generous padding and spacing
+- Consistent border radius (8, 12, 16)
+- Touch feedback on all interactive elements
+- Empty states for lists
+- Loading indicators where needed
+
+### 8. Dependencies
+ONLY include dependencies that are actually used:
+- Navigation: @react-navigation/native, @react-navigation/native-stack
+- If using tabs: @react-navigation/bottom-tabs
+- If using gradients: expo-linear-gradient
+- If using icons: @expo/vector-icons (already included in Expo)
+
+## RESPONSE RULES
+
+1. Output ONLY the JSON object - no markdown, no explanations before or after
+2. The JSON must be valid and parseable
+3. All code strings must have newlines escaped as \\n
+4. All quotes in code must be escaped as \\"
+5. Generate a COMPLETE app, not partial code
+6. Include at minimum: App.js, 2 screens, 2 components, Colors.js
+7. Use realistic content in the user's language (Vietnamese or English)
+
+## IMPORTANT
+
+When the user asks for an app, analyze what screens and components are needed, then generate ALL of them in a single response. Think about:
+- What screens does this app need?
+- What components are reusable?
+- What data structures are needed?
+- What navigation flow makes sense?
+
+Generate everything in one response - the user should have a working app immediately.`;
 }
 
 /**
- * Extract message content (text without tool calls)
+ * System prompt for MODIFYING existing apps
  */
-export function extractMessageContent(response: string): string {
-  return response
-    .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
-    .trim();
-}
+export function getAppModificationPrompt(currentFiles: Record<string, string>): string {
+  const fileList = Object.keys(currentFiles).map(f => `- ${f}`).join('\n');
+  const fileContents = Object.entries(currentFiles)
+    .map(([path, content]) => `### ${path}\n\`\`\`javascript\n${content}\n\`\`\``)
+    .join('\n\n');
 
-/**
- * Generate system prompt for the AI with tools
- */
-export function getAgentSystemPrompt(files: string[], fileContents?: Record<string, string>): string {
-  const fileList = files.map(f => `- ${f}`).join('\n');
-  
-  return `You are 24fit AI, an expert React Native and Expo developer. You help users build mobile apps by writing clean, production-ready code.
-
-## YOUR TOOLS
-
-You have these tools to modify the project:
-
-### write_file
-Create a new file or completely overwrite an existing file.
-Use for: Creating new screens, new components, or major rewrites.
-
-### edit_file  
-Edit an existing file by finding and replacing specific text.
-Use for: Small changes like fixing bugs, changing colors, updating text.
-IMPORTANT: The search text must match EXACTLY including whitespace and indentation.
-
-### delete_file
-Delete a file from the project.
-
-### read_file
-Read a file's contents before modifying it.
-
-### add_dependency
-Add an npm package to the project.
+  return `You are an expert React Native developer. Modify the existing app based on user request.
 
 ## CURRENT PROJECT FILES:
 ${fileList}
 
-## HOW TO USE TOOLS
+## CURRENT FILE CONTENTS:
+${fileContents}
 
-Wrap each tool call in <tool_call> tags with valid JSON:
+## OUTPUT FORMAT
 
-<tool_call>
-{"name": "write_file", "arguments": {"path": "screens/ProfileScreen.js", "contents": "import React from 'react';\\nimport { View, Text } from 'react-native';\\n..."}}
-</tool_call>
+Respond with JSON containing ONLY the files that need to be changed or added:
 
-You can use multiple tools in one response. They execute in order.
-
-## PROJECT STRUCTURE
-
-Follow this structure for React Native/Expo apps:
+\`\`\`json
+{
+  "appName": "Updated App Name (or keep original)",
+  "description": "What was changed",
+  "files": {
+    "screens/NewScreen.js": "// New file content",
+    "screens/HomeScreen.js": "// Updated content (full file)"
+  },
+  "dependencies": {
+    "new-package": "1.x"
+  }
+}
 \`\`\`
-App.js              # Entry point with navigation setup
-screens/            # Screen components (HomeScreen.js, ProfileScreen.js, etc.)
-components/         # Reusable UI components (Button.js, Card.js, etc.)
-constants/          # Design tokens, colors, config (Colors.js)
-hooks/              # Custom React hooks
-utils/              # Utility functions
-\`\`\`
 
-## CODE STYLE GUIDELINES
+## RULES
 
-1. **Imports**: Always use proper React Native imports
-   \`\`\`javascript
-   import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-   import { SafeAreaView } from 'react-native-safe-area-context';
-   \`\`\`
-
-2. **Styling**: Use StyleSheet.create() for styles
-   \`\`\`javascript
-   const styles = StyleSheet.create({
-     container: { flex: 1, backgroundColor: '#0a0a0a' },
-   });
-   \`\`\`
-
-3. **Colors**: Use the design system from constants/Colors.js
-   - Background: #0a0a0a (dark), #111111 (card)
-   - Primary: #7c3aed (purple)
-   - Text: #ffffff (primary), #a1a1aa (muted)
-
-4. **Navigation**: Use @react-navigation/native with native-stack
-   \`\`\`javascript
-   import { NavigationContainer } from '@react-navigation/native';
-   import { createNativeStackNavigator } from '@react-navigation/native-stack';
-   \`\`\`
-
-5. **Components**: Export as default, use functional components with hooks
-
-## WHEN TO USE WHICH TOOL
-
-- **New feature/screen** → write_file to create new files
-- **Bug fix** → edit_file to change specific code
-- **Style change** → edit_file to update StyleSheet
-- **Add new section** → edit_file or write_file depending on scope
-- **Refactor** → May need multiple edit_file or write_file calls
-
-## RESPONSE FORMAT
-
-1. Brief explanation (1-2 sentences) of what you're doing
-2. Your tool calls
-3. Short confirmation of changes made
-
-Keep responses concise and focused on actions. Don't explain code unless asked.`;
+1. Only include files that are NEW or MODIFIED
+2. For modified files, include the COMPLETE new content (not patches)
+3. Keep the same code style and structure
+4. Maintain consistency with existing components
+5. Update navigation in App.js if adding new screens
+6. Output ONLY valid JSON, no explanations`;
 }
 
 /**
- * Process AI response and execute tools
+ * Parse AI response to extract generated app
  */
-export async function processAIResponse(
-  response: string,
-  snackManager: SnackManager
-): Promise<{
-  message: string;
-  changes: FileChange[];
-  toolResults: ToolResult[];
-}> {
-  const toolCalls = parseToolCalls(response);
-  const message = extractMessageContent(response);
-  const changes: FileChange[] = [];
-  const toolResults: ToolResult[] = [];
-
-  for (const toolCall of toolCalls) {
-    const result = executeTool(toolCall, snackManager);
-    toolResults.push(result);
+export function parseGeneratedApp(response: string): ParsedResponse {
+  try {
+    // Try to extract JSON from the response
+    let jsonStr = response;
     
-    if (result.changes) {
-      changes.push(...result.changes);
+    // Remove markdown code blocks if present
+    const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) {
+      jsonStr = jsonMatch[1].trim();
+    }
+    
+    // Try to find JSON object directly
+    const objectMatch = jsonStr.match(/\{[\s\S]*\}/);
+    if (objectMatch) {
+      jsonStr = objectMatch[0];
+    }
+
+    const parsed = JSON.parse(jsonStr);
+    
+    // Validate required fields
+    if (!parsed.files || typeof parsed.files !== 'object') {
+      return {
+        app: null,
+        message: '',
+        error: 'Invalid response: missing files object',
+      };
+    }
+
+    // Ensure we have at least App.js
+    if (!parsed.files['App.js']) {
+      return {
+        app: null,
+        message: '',
+        error: 'Invalid response: missing App.js',
+      };
+    }
+
+    return {
+      app: {
+        appName: parsed.appName || 'My App',
+        description: parsed.description || '',
+        files: parsed.files,
+        dependencies: parsed.dependencies || {},
+      },
+      message: parsed.description || 'App generated successfully!',
+    };
+  } catch (error: any) {
+    console.error('Failed to parse AI response:', error);
+    
+    // Try to extract any useful message
+    const messageMatch = response.match(/^[^{]*/);
+    const message = messageMatch ? messageMatch[0].trim() : '';
+    
+    return {
+      app: null,
+      message,
+      error: `Failed to parse response: ${error.message}`,
+    };
+  }
+}
+
+/**
+ * Merge new files into existing project
+ */
+export function mergeProjectFiles(
+  existing: Record<string, string>,
+  updates: Record<string, string>
+): Record<string, string> {
+  return {
+    ...existing,
+    ...updates,
+  };
+}
+
+/**
+ * Validate generated code for common issues
+ */
+export function validateGeneratedCode(files: Record<string, string>): {
+  valid: boolean;
+  errors: string[];
+} {
+  const errors: string[] = [];
+
+  for (const [path, content] of Object.entries(files)) {
+    // Check for basic syntax issues
+    const openBraces = (content.match(/\{/g) || []).length;
+    const closeBraces = (content.match(/\}/g) || []).length;
+    if (openBraces !== closeBraces) {
+      errors.push(`${path}: Mismatched braces (${openBraces} open, ${closeBraces} close)`);
+    }
+
+    const openParens = (content.match(/\(/g) || []).length;
+    const closeParens = (content.match(/\)/g) || []).length;
+    if (openParens !== closeParens) {
+      errors.push(`${path}: Mismatched parentheses (${openParens} open, ${closeParens} close)`);
+    }
+
+    // Check for required exports in screens and components
+    if (path.includes('screens/') || path.includes('components/')) {
+      if (!content.includes('export default')) {
+        errors.push(`${path}: Missing default export`);
+      }
+    }
+
+    // Check for StyleSheet usage
+    if (content.includes('style=') && !content.includes('StyleSheet.create')) {
+      errors.push(`${path}: Using inline styles instead of StyleSheet.create`);
     }
   }
 
-  return { message, changes, toolResults };
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}
+
+/**
+ * Get default dependencies for Expo projects
+ */
+export function getDefaultDependencies(): Record<string, string> {
+  return {
+    '@react-navigation/native': '6.x',
+    '@react-navigation/native-stack': '6.x',
+    'react-native-screens': '~3.29.0',
+    'react-native-safe-area-context': '4.8.2',
+  };
 }
